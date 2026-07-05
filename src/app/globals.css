@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #fffdfb;
+  --foreground: #2b2521;
+}
+
+html {
+  color: var(--foreground);
+  background: var(--background);
+}
+
+body {
+  min-height: 100vh;
+}

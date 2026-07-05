@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(node -e \"console.log\\('ssr', require\\('@supabase/ssr/package.json'\\).version\\)\")",
+      "Bash(NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321 NEXT_PUBLIC_SUPABASE_ANON_KEY=dummy NEXT_PUBLIC_SITE_URL=http://localhost:3000 npx next build)",
+      "Bash(npx vitest *)",
+      "Bash(git init *)",
+      "Bash(git symbolic-ref *)",
+      "Bash(git remote *)",
+      "Bash(git ls-remote *)",
+      "Bash(git fetch *)",
+      "Bash(git ls-tree *)",
+      "Bash(git add *)",
+      "Bash(git config *)",
+      "Bash(git rm *)",
+      "Bash(git commit -q -m ' *)"
+    ]
+  }
+}
