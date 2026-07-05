@@ -8,7 +8,7 @@ export const analysisOutputSchema = z.object({
   category_valid: z.boolean(),
   suggested_category_slug: z.string().nullable().default(null),
   sub_tags: z
-    .array(z.string().min(1).max(30))
+    .array(z.string().min(1).transform((s) => s.slice(0, 30)))
     .default([])
     // 上限超過はエラーにせず最大5個に切り詰める(無駄なリトライを避ける)
     .transform((tags) => tags.slice(0, 5)),
@@ -23,17 +23,29 @@ export const analysisOutputSchema = z.object({
     .array(
       z.object({
         id: z.string().min(1),
-        pitch: z.string().min(1).max(400),
+        // 長すぎる pitch はエラーにせず切り詰める(1文字超過でのリトライを避ける)
+        pitch: z
+          .string()
+          .min(1)
+          .transform((s) => s.slice(0, 400)),
       })
     )
     .default([])
     // 上限超過はエラーにせず最大3件に切り詰める
     .transform((m) => m.slice(0, 3)),
-  general_advice: z.string().max(600).nullable().default(null),
+  general_advice: z
+    .string()
+    .transform((s) => s.slice(0, 600))
+    .nullable()
+    .default(null),
   quality_score: z
     .number()
     .transform((n) => Math.max(0, Math.min(100, Math.round(n)))),
-  follow_up_question: z.string().max(200).nullable().default(null),
+  follow_up_question: z
+    .string()
+    .transform((s) => s.slice(0, 200))
+    .nullable()
+    .default(null),
 });
 
 export type AnalysisOutput = z.infer<typeof analysisOutputSchema>;

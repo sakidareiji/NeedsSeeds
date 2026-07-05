@@ -43,6 +43,20 @@ describe("analysisOutputSchema (F3 LLM出力バリデーション)", () => {
     expect(r.matched_solutions).toHaveLength(3);
   });
 
+  it("truncates over-long text fields instead of failing (no wasted retry)", () => {
+    const r = analysisOutputSchema.parse({
+      ...valid,
+      sub_tags: ["あ".repeat(50)],
+      matched_solutions: [{ id: "sol-1", pitch: "p".repeat(500) }],
+      general_advice: "a".repeat(700),
+      follow_up_question: "q".repeat(300),
+    });
+    expect(r.sub_tags[0]).toHaveLength(30);
+    expect(r.matched_solutions[0].pitch).toHaveLength(400);
+    expect(r.general_advice).toHaveLength(600);
+    expect(r.follow_up_question).toHaveLength(200);
+  });
+
   it("rejects payloads missing required fields (→ triggers retry in pipeline)", () => {
     const { moderation, ...missingModeration } = valid;
     void moderation;
