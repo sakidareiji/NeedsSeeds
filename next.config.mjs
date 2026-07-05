@@ -2,8 +2,13 @@
 const nextConfig = {
   reactStrictMode: true,
   experimental: {
-    // Next.js 14 `after()` for fire-and-forget async work (LLM pipeline enqueue, M2)
-    after: true,
+    // /prompts/analyze.md is read at runtime by the analysis pipeline — ensure
+    // it is included in the serverless bundle (F3: prompts as editable files).
+    outputFileTracingIncludes: {
+      "/api/analyze": ["./prompts/**"],
+      "/posts/new": ["./prompts/**"],
+      "/posts/[handle]/edit": ["./prompts/**"],
+    },
   },
 };
 

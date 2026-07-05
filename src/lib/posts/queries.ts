@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { featuredScore } from "@config/ranking";
 
@@ -23,7 +24,7 @@ export type PostDetail = PostListItem & {
   updated_at: string;
 };
 
-const LIST_SELECT =
+export const LIST_SELECT =
   "id, title, body, severity, frequency, empathy_count, quality_score, status, resolved_at, created_at, category:categories(id, slug, name), author:users(id, display_name)";
 
 export type SortMode = "featured" | "new";
@@ -54,6 +55,8 @@ export async function listPosts(opts: {
 
   // Over-fetch a window, then sort. 注目順(F11)は quality_score / empathy を
   // 加味するため、新着で広めに取得してからアプリ側で加重ソートする。
+  // NOTE(M2): 窓が新着100件固定のため、それより古い高共感投稿はランク外に
+  // 落ちる。投稿数が増えたらスコアを DB 側にマテリアライズして order by する。
   const { data } = await query
     .order("created_at", { ascending: false })
     .limit(opts.sort === "new" ? limit : Math.max(limit, 100));
@@ -78,15 +81,20 @@ export async function listPosts(opts: {
     .map(({ p }) => p);
 }
 
-/** Fetch a single post by id. Respects RLS (published, or own post). */
-export async function getPostById(id: string): Promise<PostDetail | null> {
-  const supabase = createClient();
-  const { data } = await supabase
-    .from("posts")
-    .select(
-      "id, user_id, category_id, title, body, severity, frequency, empathy_count, quality_score, status, ai_status, resolved_at, created_at, updated_at, category:categories(id, slug, name), author:users(id, display_name)"
-    )
-    .eq("id", id)
-    .maybeSingle();
-  return (data as unknown as PostDetail) ?? null;
-}
+/**
+ * Fetch a single post by id. Respects RLS (published, or own post).
+ * cache() dedupes the generateMetadata + page fetch within one request.
+ */
+export const getPostById = cache(
+  async (id: string): Promise<PostDetail | null> => {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("posts")
+      .select(
+        "id, user_id, category_id, title, body, severity, frequency, empathy_count, quality_score, status, ai_status, resolved_at, created_at, updated_at, category:categories(id, slug, name), author:users(id, display_name)"
+      )
+      .eq("id", id)
+      .maybeSingle();
+    return (data as unknown as PostDetail) ?? null;
+  }
+);

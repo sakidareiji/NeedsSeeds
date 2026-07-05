@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPostById } from "@/lib/posts/queries";
 import { getAuthUser } from "@/lib/auth";
+import { getPostHints, getFollowUpQuestion } from "@/lib/solutions";
+import { logImpressions } from "@/lib/events";
 import {
   idFromHandle,
   postHandle,
@@ -12,6 +14,8 @@ import {
 } from "@/lib/format";
 import type { Frequency } from "@/lib/database.types";
 import { DeletePostButton } from "@/components/DeletePostButton";
+import { SolutionHints } from "@/components/SolutionHints";
+import { FollowUpComment } from "@/components/FollowUpComment";
 
 export async function generateMetadata({
   params,
@@ -50,6 +54,23 @@ export default async function PostDetailPage({
   const isOwner = user?.id === post?.user_id;
   if (!post || post.status === "deleted") notFound();
   if (post.status !== "published" && !isOwner) notFound();
+
+  const [hints, followUp] = await Promise.all([
+    getPostHints(post.id),
+    getFollowUpQuestion(post.id),
+  ]);
+  const handle = postHandle(post.id, post.title);
+
+  // 解決のヒント表示(imp)を計測(F9)。描画をブロックしないよう fire-and-forget。
+  if (hints.length > 0) {
+    void logImpressions(
+      post.id,
+      hints.map((h) => h.id)
+    ).catch(() => {});
+  }
+
+  const showAnalyzing =
+    post.status === "published" && post.ai_status === "pending" && hints.length === 0;
 
   return (
     <article className="space-y-6">
@@ -93,16 +114,31 @@ export default async function PostDetailPage({
         {post.body}
       </div>
 
+      {/* 解決のヒント(F4): マスタ提示 + 一般アドバイスを同一UIで。センシティブ/
+          NG投稿には何も出さない(パイプライン側で post_solutions を作らない)。 */}
+      <SolutionHints hints={hints} />
+
+      {showAnalyzing && (
+        <p className="rounded-xl border border-dashed border-neutral-200 p-4 text-sm text-neutral-400">
+          AIが解決のヒントを探しています。少し待って再読み込みしてください。
+        </p>
+      )}
+
+      {/* 追記促し(F3-7): 品質が低めの投稿に運営AIからの問いかけ */}
+      {followUp && (
+        <FollowUpComment
+          question={followUp}
+          canEdit={isOwner}
+          editHref={`/posts/${handle}/edit`}
+        />
+      )}
+
       <div className="flex items-center gap-4 border-t border-neutral-200 pt-4 text-sm text-neutral-500">
         <span>わかる {post.empathy_count}</span>
         {/* M3: 「わかる」ボタン / 解決報告 UI */}
-        {/* M2: 「解決のヒント」セクション(解決策マッチング・一般アドバイス) */}
         {isOwner && (
           <div className="ml-auto flex items-center gap-3">
-            <Link
-              href={`/posts/${postHandle(post.id, post.title)}/edit`}
-              className="hover:text-brand-600"
-            >
+            <Link href={`/posts/${handle}/edit`} className="hover:text-brand-600">
               編集
             </Link>
             <DeletePostButton postId={post.id} />

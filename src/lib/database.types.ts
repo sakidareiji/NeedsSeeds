@@ -17,6 +17,8 @@ export type PostStatus = "published" | "hidden" | "deleted";
 export type AiStatus = "pending" | "done" | "failed";
 export type ResolvedBy = "solution" | "self" | "other";
 export type Frequency = "daily" | "weekly" | "monthly" | "rarely";
+export type SolutionStatus = "active" | "paused";
+export type SolutionSource = "master" | "ai_generated";
 
 export interface Database {
   public: {
@@ -107,14 +109,141 @@ export interface Database {
           frequency?: Frequency | null;
           status?: PostStatus;
           ai_status?: AiStatus;
+          quality_score?: number | null;
           resolved_at?: string | null;
           resolved_by?: ResolvedBy | null;
           resolved_solution_id?: string | null;
         };
         Relationships: [];
       };
+      solutions: {
+        Row: {
+          id: string;
+          name: string;
+          description: string;
+          url: string;
+          is_affiliate: boolean;
+          commercial_types: string[];
+          category_ids: number[];
+          status: SolutionStatus;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          description?: string;
+          url: string;
+          is_affiliate?: boolean;
+          commercial_types?: string[];
+          category_ids?: number[];
+          status?: SolutionStatus;
+        };
+        Update: {
+          name?: string;
+          description?: string;
+          url?: string;
+          is_affiliate?: boolean;
+          commercial_types?: string[];
+          category_ids?: number[];
+          status?: SolutionStatus;
+        };
+        Relationships: [];
+      };
+      post_analyses: {
+        Row: {
+          id: string;
+          post_id: string;
+          sub_tags: Json;
+          commercial_type: string | null;
+          moderation_flags: Json;
+          is_sensitive: boolean;
+          quality_score: number | null;
+          follow_up_question: string | null;
+          raw_llm_output: Json | null;
+          model: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          sub_tags?: Json;
+          commercial_type?: string | null;
+          moderation_flags?: Json;
+          is_sensitive?: boolean;
+          quality_score?: number | null;
+          follow_up_question?: string | null;
+          raw_llm_output?: Json | null;
+          model?: string | null;
+        };
+        Update: {
+          sub_tags?: Json;
+          commercial_type?: string | null;
+          moderation_flags?: Json;
+          is_sensitive?: boolean;
+          quality_score?: number | null;
+          follow_up_question?: string | null;
+          raw_llm_output?: Json | null;
+          model?: string | null;
+        };
+        Relationships: [];
+      };
+      post_solutions: {
+        Row: {
+          id: string;
+          post_id: string;
+          solution_id: string | null;
+          source: SolutionSource;
+          pitch_text: string;
+          rank: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          solution_id?: string | null;
+          source: SolutionSource;
+          pitch_text: string;
+          rank?: number;
+        };
+        Update: {
+          pitch_text?: string;
+          rank?: number;
+        };
+        Relationships: [];
+      };
+      events: {
+        Row: {
+          id: number;
+          type: string;
+          user_id: string | null;
+          post_id: string | null;
+          solution_id: string | null;
+          meta: Json;
+          created_at: string;
+        };
+        Insert: {
+          type: string;
+          user_id?: string | null;
+          post_id?: string | null;
+          solution_id?: string | null;
+          meta?: Json;
+        };
+        Update: {
+          meta?: Json;
+        };
+        Relationships: [];
+      };
     };
-    Views: Record<string, never>;
+    Views: {
+      post_public_analysis: {
+        Row: {
+          post_id: string | null;
+          sub_tags: Json | null;
+          follow_up_question: string | null;
+        };
+        Relationships: [];
+      };
+    };
     Functions: Record<string, never>;
     Enums: Record<string, never>;
   };

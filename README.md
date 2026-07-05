@@ -10,7 +10,7 @@
 | | 内容 | 状態 |
 |---|---|---|
 | M1 | 骨格 — 認証、投稿CRUD、カテゴリ、一覧・詳細(SSR) | ✅ 完了 |
-| M2 | 核 — AI解析パイプライン、解決策マスタ、自動提示、PR表記、クリック計測 | 未着手 |
+| M2 | 核 — AI解析パイプライン、解決策マスタ、自動提示、PR表記、クリック計測 | ✅ 完了 |
 | M3 | 循環 — わかる、解決報告、貢献スコア・グレード、通知、プロフィール実績 | 未着手 |
 | M4 | 運営 — 管理画面、種投稿インポート、モデレーション、通報 | 未着手 |
 | M5 | 公開準備 — SEO、静的ページ、レートリミット、デプロイ | 未着手 |
@@ -53,7 +53,15 @@ npm run dev            # http://localhost:3000
 | `NEXT_PUBLIC_SITE_URL` | 例 `http://localhost:3000` |
 | `ANTHROPIC_API_KEY` | Anthropic API キー(M2 以降) |
 | `ANTHROPIC_MODEL` | 解析に使うモデル ID(既定 `claude-sonnet-4-6`) |
-| `ANALYSIS_WORKER_SECRET` | 解析ワーカー起動用の共有シークレット(M2) |
+| `ANALYSIS_WORKER_SECRET` | 解析ワーカー(`/api/analyze`)の共有シークレット。未設定だと 503 |
+
+### AI 解析パイプライン(M2)の動作
+
+- 投稿・編集時に `ai_status='pending'` で保存し、AI 解析を **非同期** に起動する(保存はブロックしない)。
+- 解析は **1 投稿 1 回の LLM 呼び出し**(forced tool call → zod 検証、失敗時は最大2回リトライ→ `ai_status='failed'` で人力確認キューへ)。
+- `ai_status='pending' / 'failed'` を DB フラグ(=簡易キュー)として、Vercel Cron が毎分 `/api/analyze`(GET)で拾い直す。ローカル開発では投稿直後に fire-and-forget で走る。
+- **Vercel Cron の認可**: `ANALYSIS_WORKER_SECRET` と同じ値を `CRON_SECRET` に設定すると、Cron の `Authorization: Bearer` が通る。手動実行は `curl -XPOST -H "x-worker-secret: <secret>" $SITE/api/analyze`(`{"postId":"..."}` で単一投稿も可)。
+- 解決策マスタが空でもパイプラインは動作し、マッチ0件時は一般アドバイスを提示する。ローカルでは `supabase/seed.sql` にサンプル解決策を投入済み。
 
 ### Google OAuth(任意)
 

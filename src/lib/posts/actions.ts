@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { postInputSchema } from "@/lib/posts/schema";
 import { postHandle } from "@/lib/format";
+import { enqueueAnalysis } from "@/lib/analysis/enqueue";
 
 export type ActionState = { error?: string } | null;
 
@@ -52,7 +53,8 @@ export async function createPost(
     return { error: "投稿の保存に失敗しました。しばらくして再度お試しください。" };
   }
 
-  // NOTE(M2): enqueue async AI analysis here (does not block the save).
+  // AI解析を非同期起動(保存はブロックしない)。失敗しても投稿は成立する。
+  enqueueAnalysis(data.id);
 
   revalidatePath("/");
   redirect(`/posts/${postHandle(data.id, data.title)}`);
@@ -83,6 +85,8 @@ export async function updatePost(
       body: parsed.data.body,
       severity: parsed.data.severity,
       frequency: parsed.data.frequency,
+      // 追記・修正で内容が変わるため再査定する(F3-7 の対話ループ)。
+      ai_status: "pending",
     })
     .eq("id", postId)
     .eq("user_id", user.id)
@@ -93,9 +97,13 @@ export async function updatePost(
     return { error: "更新に失敗しました。" };
   }
 
-  revalidatePath(`/posts/${postId}`);
+  // 内容変更を反映するため AI 解析を再実行。
+  enqueueAnalysis(data.id);
+
+  const handle = postHandle(data.id, data.title);
+  revalidatePath(`/posts/${handle}`);
   revalidatePath("/");
-  redirect(`/posts/${postHandle(data.id, data.title)}`);
+  redirect(`/posts/${handle}`);
 }
 
 /** F2 論理削除(物理削除しない — データ資産保全 §5)。ユーザーには「削除」と表示。 */

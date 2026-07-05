@@ -7,6 +7,19 @@ import { createClient } from "@/lib/supabase/client";
 
 type Mode = "login" | "signup";
 
+/** Supabase auth の主要な英語エラーを日本語にマップ。未知のものはそのまま表示。 */
+function toJaAuthError(message: string): string {
+  const map: [RegExp, string][] = [
+    [/invalid login credentials/i, "メールアドレスまたはパスワードが正しくありません"],
+    [/email not confirmed/i, "メールアドレスが未確認です。確認メールのリンクを開いてください"],
+    [/user already registered/i, "このメールアドレスは既に登録されています"],
+    [/password should be at least/i, "パスワードは6文字以上で入力してください"],
+    [/(rate limit|too many requests)/i, "試行回数が多すぎます。しばらくしてからお試しください"],
+    [/unable to validate email|invalid email/i, "メールアドレスの形式が正しくありません"],
+  ];
+  return map.find(([re]) => re.test(message))?.[1] ?? message;
+}
+
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
   const supabase = createClient();
@@ -52,7 +65,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
         router.refresh();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "エラーが発生しました");
+      setError(
+        err instanceof Error ? toJaAuthError(err.message) : "エラーが発生しました"
+      );
     } finally {
       setLoading(false);
     }
@@ -64,7 +79,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       provider: "google",
       options: { redirectTo: `${location.origin}/auth/callback` },
     });
-    if (error) setError(error.message);
+    if (error) setError(toJaAuthError(error.message));
   }
 
   return (

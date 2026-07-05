@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/auth";
 import { PostCard } from "@/components/PostCard";
-import type { PostListItem } from "@/lib/posts/queries";
+import { LIST_SELECT, type PostListItem } from "@/lib/posts/queries";
 
 export async function generateMetadata({
   params,
@@ -38,9 +38,7 @@ export default async function ProfilePage({
   // Own posts include hidden ones; others see only published (RLS enforces this).
   const { data: postsData } = await supabase
     .from("posts")
-    .select(
-      "id, title, body, severity, frequency, empathy_count, quality_score, status, resolved_at, created_at, category:categories(id, slug, name), author:users(id, display_name)"
-    )
+    .select(LIST_SELECT)
     .eq("user_id", profile.id)
     .neq("status", "deleted")
     .order("created_at", { ascending: false });
