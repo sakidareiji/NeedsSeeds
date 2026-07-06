@@ -21,6 +21,7 @@ import { EmpathyButton } from "@/components/EmpathyButton";
 import { ResolutionReport } from "@/components/ResolutionReport";
 import { HelpfulButton } from "@/components/HelpfulButton";
 import { GradeBadge } from "@/components/GradeBadge";
+import { ReportButton } from "@/components/ReportButton";
 
 export async function generateMetadata({
   params,
@@ -179,12 +180,16 @@ export default async function PostDetailPage({
                 canReact={!!user}
               />
             )}
-        {isOwner && (
+        {isOwner ? (
           <div className="ml-auto flex items-center gap-3">
             <Link href={`/posts/${handle}/edit`} className="hover:text-brand-600">
               編集
             </Link>
             <DeletePostButton postId={post.id} />
+          </div>
+        ) : (
+          <div className="ml-auto">
+            <ReportButton postId={post.id} canReact={!!user} />
           </div>
         )}
       </div>

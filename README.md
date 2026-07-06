@@ -12,7 +12,7 @@
 | M1 | 骨格 — 認証、投稿CRUD、カテゴリ、一覧・詳細(SSR) | ✅ 完了 |
 | M2 | 核 — AI解析パイプライン、解決策マスタ、自動提示、PR表記、クリック計測 | ✅ 完了 |
 | M3 | 循環 — わかる、解決報告、貢献スコア・グレード、通知、プロフィール実績 | ✅ 完了 |
-| M4 | 運営 — 管理画面、種投稿インポート、モデレーション、通報 | 未着手 |
+| M4 | 運営 — 管理画面、種投稿インポート、モデレーション、通報 | ✅ 完了 |
 | M5 | 公開準備 — SEO、静的ページ、レートリミット、デプロイ | 未着手 |
 
 ## セットアップ
@@ -62,6 +62,13 @@ npm run dev            # http://localhost:3000
 - `ai_status='pending' / 'failed'` を DB フラグ(=簡易キュー)として、Vercel Cron が毎分 `/api/analyze`(GET)で拾い直す。ローカル開発では投稿直後に fire-and-forget で走る。
 - **Vercel Cron の認可**: `ANALYSIS_WORKER_SECRET` と同じ値を `CRON_SECRET` に設定すると、Cron の `Authorization: Bearer` が通る。手動実行は `curl -XPOST -H "x-worker-secret: <secret>" $SITE/api/analyze`(`{"postId":"..."}` で単一投稿も可)。
 - 解決策マスタが空でもパイプラインは動作し、マッチ0件時は一般アドバイスを提示する。ローカルでは `supabase/seed.sql` にサンプル解決策を投入済み。
+
+### 運営管理画面(M4)
+
+- `/admin` は `users.role = 'admin'` のみアクセス可。管理操作はサービスロール(admin client)で実行する。
+- 機能: 投稿一覧/検索/公開状態変更・通報キュー・解析失敗キュー(再解析)・解決策マスタCRUD・カテゴリCRUD・KPI簡易表示・**種投稿の CSV/JSON 一括インポート**。
+- 最初の管理者は手動で付与する(ローカル): `supabase start` 後に SQL で `update public.users set role='admin' where id='<自分のauth uid>';`(Studio か psql で実行)。
+- 種投稿インポート: 管理画面でシードアカウント(role=seed)を作成 → CSV/JSON を貼り付けて割り当て。CSV ヘッダは `title,body,category,severity,frequency`(category はカテゴリ slug)。
 
 ### Google OAuth(任意)
 

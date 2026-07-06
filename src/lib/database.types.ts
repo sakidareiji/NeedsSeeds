@@ -19,6 +19,7 @@ export type ResolvedBy = "solution" | "self" | "other";
 export type Frequency = "daily" | "weekly" | "monthly" | "rarely";
 export type SolutionStatus = "active" | "paused";
 export type SolutionSource = "master" | "ai_generated";
+export type ReportStatus = "open" | "reviewing" | "closed";
 
 export interface Database {
   public: {
@@ -291,6 +292,25 @@ export interface Database {
           read_at?: string | null;
         };
         Update: { read_at?: string | null };
+        Relationships: [];
+      };
+      reports: {
+        Row: {
+          id: string;
+          post_id: string;
+          user_id: string | null;
+          reason: string;
+          status: ReportStatus;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          post_id: string;
+          user_id?: string | null;
+          reason: string;
+          status?: ReportStatus;
+        };
+        Update: { status?: ReportStatus };
         Relationships: [];
       };
     };

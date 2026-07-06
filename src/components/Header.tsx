@@ -38,6 +38,11 @@ export async function Header({ profile }: { profile: Profile | null }) {
               >
                 {profile.display_name}
               </Link>
+              {profile.role === "admin" && (
+                <Link href="/admin" className="text-neutral-500 hover:text-brand-600">
+                  運営
+                </Link>
+              )}
               <SignOutButton />
             </>
           ) : (
