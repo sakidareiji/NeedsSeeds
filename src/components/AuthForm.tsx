@@ -20,6 +20,12 @@ function toJaAuthError(message: string): string {
   return map.find(([re]) => re.test(message))?.[1] ?? message;
 }
 
+// Google プロバイダを Supabase 側で有効化したときだけ true にする。
+// 未設定のまま Google ボタンを押すと "Unsupported provider" エラーになるため、
+// 有効時のみボタンを表示する(仕様上 Google OAuth は任意)。
+const GOOGLE_ENABLED =
+  process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === "true";
+
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
   const supabase = createClient();
@@ -88,19 +94,23 @@ export function AuthForm({ mode }: { mode: Mode }) {
         {mode === "signup" ? "新規登録" : "ログイン"}
       </h1>
 
-      <button
-        type="button"
-        onClick={signInWithGoogle}
-        className="mb-4 w-full rounded-lg border border-neutral-300 bg-white px-4 py-2 font-medium hover:bg-neutral-50"
-      >
-        Google で{mode === "signup" ? "登録" : "ログイン"}
-      </button>
+      {GOOGLE_ENABLED && (
+        <>
+          <button
+            type="button"
+            onClick={signInWithGoogle}
+            className="mb-4 w-full rounded-lg border border-neutral-300 bg-white px-4 py-2 font-medium hover:bg-neutral-50"
+          >
+            Google で{mode === "signup" ? "登録" : "ログイン"}
+          </button>
 
-      <div className="my-4 flex items-center gap-3 text-sm text-neutral-400">
-        <span className="h-px flex-1 bg-neutral-200" />
-        または
-        <span className="h-px flex-1 bg-neutral-200" />
-      </div>
+          <div className="my-4 flex items-center gap-3 text-sm text-neutral-400">
+            <span className="h-px flex-1 bg-neutral-200" />
+            または
+            <span className="h-px flex-1 bg-neutral-200" />
+          </div>
+        </>
+      )}
 
       <form onSubmit={onSubmit} className="space-y-4">
         {mode === "signup" && (

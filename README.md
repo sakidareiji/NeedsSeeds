@@ -72,8 +72,17 @@ npm run dev            # http://localhost:3000
 
 ### Google OAuth(任意)
 
-`supabase/config.toml` の `[auth.external.google]` を `enabled = true` にし、
-`SUPABASE_AUTH_GOOGLE_CLIENT_ID` / `SUPABASE_AUTH_GOOGLE_SECRET` を環境変数に設定してから `supabase start` を再実行します。設定しない場合はメール+パスワードのみで動作します(ローカルではメール確認は無効: `enable_confirmations = false`)。
+既定では**メール+パスワードのみ**で動作し、Google ボタンは表示されません
+(`NEXT_PUBLIC_GOOGLE_AUTH_ENABLED` が未設定/`false` のため)。有効化する場合:
+
+1. `supabase/config.toml` の `[auth.external.google]` を `enabled = true` にする。
+2. `SUPABASE_AUTH_GOOGLE_CLIENT_ID` / `SUPABASE_AUTH_GOOGLE_SECRET` を環境変数に設定して `supabase start` を再実行(ホスト版は Dashboard → Authentication → Providers → Google で設定)。
+3. `.env.local` に `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=true` を追加して Google ボタンを表示。
+
+> ⚠️ プロバイダを有効化せずに Google ボタンを押すと Supabase が
+> `Unsupported provider: provider is not enabled` を返します。有効化するまでは
+> `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=false`(既定)のままにしてください。
+> ローカルではメール確認は無効(`enable_confirmations = false`)なので、登録後すぐログインできます。
 
 ## スクリプト
 
