@@ -32,16 +32,22 @@ export function EmpathyButton({
       router.push("/login");
       return;
     }
-    // 楽観更新
+    // 楽観更新(サーバー拒否時は元の状態へ巻き戻す)
+    const prevOn = on;
+    const prevCount = count;
     const nextOn = !on;
     setOn(nextOn);
     setCount((c) => c + (nextOn ? 1 : -1));
     start(async () => {
       const res = await toggleEmpathy(postId);
-      if (!res.error) {
-        setOn(res.empathized);
-        setCount(res.count);
+      if (res.error) {
+        // レート上限・対象なし等で失敗したら楽観更新を取り消す。
+        setOn(prevOn);
+        setCount(prevCount);
+        return;
       }
+      setOn(res.empathized);
+      setCount(res.count);
     });
   }
 

@@ -1,20 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 
 /**
  * 投稿完了の通知バナー(ホーム画面)。`/?posted=1` で遷移してきたときに表示し、
  * URLからクエリを取り除く(再読み込みで再表示しないため)。
+ * クエリ除去は history API で行い、RSC の再取得を発生させない。
  */
 export function PostedBanner({ show }: { show: boolean }) {
-  const router = useRouter();
   const [visible, setVisible] = useState(show);
 
   useEffect(() => {
     if (!show) return;
-    router.replace("/");
-  }, [show, router]);
+    window.history.replaceState(null, "", "/");
+  }, [show]);
 
   if (!visible) return null;
 

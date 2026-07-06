@@ -202,8 +202,12 @@ export async function markHelpful(
   const { error } = await supabase
     .from("helpful_marks")
     .insert({ post_id: postId, user_id: user.id });
-  // 既に付けている(unique違反)場合は加点しない。
-  if (error) return { ok: true };
+  if (error) {
+    // 既に付けている(unique違反 23505)場合は成功扱いで加点しない。
+    // それ以外の失敗は握りつぶさずエラーとして返す。
+    if (String(error.code).includes("23505")) return { ok: true };
+    return { ok: false, error: "登録に失敗しました" };
+  }
 
   await awardContribution({
     userId: post.user_id,
