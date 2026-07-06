@@ -1,11 +1,15 @@
 -- 初期カテゴリ(§2)。運営が管理画面から追加・編集できる(M4)前提のシード。
 insert into public.categories (slug, name, sort_order, is_active) values
-  ('money-tax',   'お金・確定申告', 10, true),
-  ('tools',       '仕事のツール',   20, true),
-  ('sales',       '営業・集客',     30, true),
-  ('legal',       '契約・法務',     40, true),
-  ('worktime',    '働き方・時間',   50, true),
-  ('life-other',  '暮らし・その他', 60, true)
+  ('money-tax',   'お金・確定申告', 10,  true),
+  ('tools',       '仕事のツール',   20,  true),
+  ('sales',       '営業・集客',     30,  true),
+  ('legal',       '契約・法務',     40,  true),
+  ('worktime',    '働き方・時間',   50,  true),
+  ('health',      '健康・メンタル', 60,  true),
+  ('skill',       'スキル・学習',   70,  true),
+  ('relations',   '人間関係',       80,  true),
+  ('life',        '暮らし',         90,  true),
+  ('other',       'その他',         100, true)
 on conflict (slug) do nothing;
 
 -- 解決策マスタのサンプル(F4)。運営が管理画面(M4)で管理する前提。URLはプレースホルダ。
