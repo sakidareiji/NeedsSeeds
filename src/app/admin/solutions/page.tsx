@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { upsertSolution } from "@/lib/admin/actions";
+import { requireAdmin } from "@/lib/admin/guard";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +58,7 @@ function SolutionForm({ s }: { s?: Solution }) {
 }
 
 export default async function AdminSolutionsPage() {
+  await requireAdmin();
   const admin = createAdminClient();
   const { data } = await admin
     .from("solutions")

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { setPostStatus } from "@/lib/admin/actions";
+import { requireAdmin } from "@/lib/admin/guard";
 import { timeAgo } from "@/lib/format";
 import type { PostStatus } from "@/lib/database.types";
 
@@ -17,6 +18,7 @@ export default async function AdminPostsPage({
 }: {
   searchParams: { q?: string; status?: string };
 }) {
+  await requireAdmin();
   const admin = createAdminClient();
   const q = searchParams.q?.trim();
   const status = searchParams.status;

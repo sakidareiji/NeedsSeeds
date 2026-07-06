@@ -1,9 +1,11 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SeedAccountForm, SeedImportForm } from "@/components/admin/SeedForms";
+import { requireAdmin } from "@/lib/admin/guard";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminImportPage() {
+  await requireAdmin();
   const admin = createAdminClient();
   const { data } = await admin
     .from("users")

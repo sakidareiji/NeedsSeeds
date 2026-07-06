@@ -1,11 +1,13 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { upsertCategory } from "@/lib/admin/actions";
+import { requireAdmin } from "@/lib/admin/guard";
 
 export const dynamic = "force-dynamic";
 
 const field = "rounded-lg border border-neutral-300 px-2 py-1 text-sm";
 
 export default async function AdminCategoriesPage() {
+  await requireAdmin();
   const admin = createAdminClient();
   const { data } = await admin
     .from("categories")

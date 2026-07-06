@@ -186,10 +186,9 @@ export async function importSeedPosts(
     .select("id");
   if (error) return { ok: false, message: error.message };
 
-  // 各投稿の AI 解析を起動(順次)。件数が多い場合は Cron が pending を拾う。
-  for (const p of inserted ?? []) {
-    await runAnalysis(p.id).catch(() => {});
-  }
+  // AI 解析はここでは実行しない。50件 × 数秒の逐次 LLM 呼び出しは server action
+  // のタイムアウトを超えるため、ai_status='pending' のまま Cron(/api/analyze)に
+  // 委ねる(このための簡易キュー)。
 
   revalidatePath("/admin/import");
   revalidatePath("/");

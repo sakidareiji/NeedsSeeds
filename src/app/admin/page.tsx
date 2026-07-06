@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { requireAdmin } from "@/lib/admin/guard";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,8 @@ function Stat({ label, value }: { label: string; value: number | string }) {
 }
 
 export default async function AdminKpiPage() {
+  // layout と page は並列レンダリングされるため、layout の認可には頼らない。
+  await requireAdmin();
   const admin = createAdminClient();
   const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
   const head = { count: "exact" as const, head: true };

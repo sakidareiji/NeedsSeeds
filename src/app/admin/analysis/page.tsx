@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { retryAnalysis } from "@/lib/admin/actions";
+import { requireAdmin } from "@/lib/admin/guard";
 import { timeAgo } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminAnalysisPage() {
+  await requireAdmin();
   const admin = createAdminClient();
   const { data } = await admin
     .from("posts")
