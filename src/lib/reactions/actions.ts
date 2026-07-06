@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { createNotification } from "@/lib/notifications";
+import { createNotificationOnce } from "@/lib/notifications";
 import { awardContribution } from "@/lib/contribution";
 import { logEvent } from "@/lib/events";
 import { isEmpathyMilestone } from "@config/reactions";
@@ -71,7 +71,8 @@ async function onEmpathyAdded(postId: string, actorId: string): Promise<void> {
 
   if (!post || post.user_id === actorId) return;
   if (isEmpathyMilestone(post.empathy_count)) {
-    await createNotification({
+    // トグル(取消→再押下)で同じ節目に再到達しても重複通知しない。
+    await createNotificationOnce({
       userId: post.user_id,
       type: "empathy_milestone",
       payload: { postId, count: post.empathy_count },
@@ -103,7 +104,22 @@ export async function reportResolution(
     .maybeSingle();
   if (!post) return { ok: false, error: "対象の投稿が見つかりません" };
 
-  const solutionId = input.resolvedBy === "solution" ? input.solutionId ?? null : null;
+  // 「提示された解決策で解決」は、この投稿に実際に提示された解決策のみ受け付ける。
+  // F9 の成果データ(解決策経由の解決)の根拠になるため、任意の ID を許さない。
+  let solutionId: string | null = null;
+  if (input.resolvedBy === "solution" && input.solutionId) {
+    const { data: presented } = await supabase
+      .from("post_solutions")
+      .select("id")
+      .eq("post_id", postId)
+      .eq("solution_id", input.solutionId)
+      .limit(1)
+      .maybeSingle();
+    if (!presented) {
+      return { ok: false, error: "この投稿に提示された解決策から選んでください" };
+    }
+    solutionId = input.solutionId;
+  }
 
   const { error } = await supabase
     .from("posts")

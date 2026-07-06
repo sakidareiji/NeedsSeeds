@@ -24,6 +24,34 @@ export async function createNotification(input: {
   });
 }
 
+/**
+ * 同一内容の通知が既にあれば作らない(F8)。
+ * 「わかる」のトグル循環などで同じ節目に再到達しても通知が重複しないよう、
+ * (userId, type, payload の部分一致) で冪等にする。
+ */
+export async function createNotificationOnce(input: {
+  userId: string;
+  type: NotificationType;
+  payload: Record<string, unknown>;
+}): Promise<void> {
+  const admin = createAdminClient();
+  const { data: existing } = await admin
+    .from("notifications")
+    .select("id")
+    .eq("user_id", input.userId)
+    .eq("type", input.type)
+    .contains("payload", input.payload)
+    .limit(1)
+    .maybeSingle();
+  if (existing) return;
+
+  await admin.from("notifications").insert({
+    user_id: input.userId,
+    type: input.type,
+    payload: input.payload as Json,
+  });
+}
+
 export type NotificationRow = {
   id: string;
   type: string;
