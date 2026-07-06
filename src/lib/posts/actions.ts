@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { postInputSchema } from "@/lib/posts/schema";
 import { postHandle } from "@/lib/format";
 import { enqueueAnalysis } from "@/lib/analysis/enqueue";
+import { canCreatePost } from "@/lib/rate-limit";
 
 export type ActionState = { error?: string } | null;
 
@@ -34,6 +35,11 @@ export async function createPost(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "ログインが必要です" };
+
+  // レートリミット(§7 投稿: 10件/日/ユーザー)。
+  if (!(await canCreatePost(user.id))) {
+    return { error: "本日の投稿上限に達しました(1日10件まで)。時間をおいて再度お試しください。" };
+  }
 
   const { data, error } = await supabase
     .from("posts")

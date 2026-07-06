@@ -13,7 +13,7 @@
 | M2 | 核 — AI解析パイプライン、解決策マスタ、自動提示、PR表記、クリック計測 | ✅ 完了 |
 | M3 | 循環 — わかる、解決報告、貢献スコア・グレード、通知、プロフィール実績 | ✅ 完了 |
 | M4 | 運営 — 管理画面、種投稿インポート、モデレーション、通報 | ✅ 完了 |
-| M5 | 公開準備 — SEO、静的ページ、レートリミット、デプロイ | 未着手 |
+| M5 | 公開準備 — SEO、静的ページ、レートリミット、デプロイ | ✅ 完了 |
 
 ## セットアップ
 
@@ -97,6 +97,24 @@ prompts/            LLM プロンプト(M2。コード変更なしで調整可�
 supabase/migrations 各マイルストーンごとの SQL マイグレーション
 supabase/seed.sql   初期カテゴリのシード
 ```
+
+## 公開準備(M5)
+
+- **SEO**: 投稿詳細は SSR + `title/本文` から meta/OGP を生成。`/sitemap.xml`(公開投稿・カテゴリ・静的ページ)と `/robots.txt`(`/admin` `/api` `/go` などを除外)を自動生成。
+- **レートリミット(§7)**: 投稿 10件/日/ユーザー、わかる 200回/日/ユーザー。しきい値は `config/limits.ts`。
+- **静的ページ**: 利用規約 / プライバシー / 運営者情報(内容はプレースホルダ、ルートは用意済み)。
+- **アナリティクス(任意)**: Vercel の Web Analytics をダッシュボードで有効化(§F9「Vercel Analytics 程度でよい」)。SPA 遷移も計測したい場合は `@vercel/analytics` を追加し `<Analytics />` を `app/layout.tsx` に挿入(現状は依存衝突回避のため未同梱)。
+
+## デプロイ(Vercel + Supabase)
+
+1. **Supabase(本番)**: プロジェクトを作成し、`supabase link` → `supabase db push` でマイグレーションを適用、`supabase/seed.sql` のカテゴリを投入。Auth の Google プロバイダ設定と、Site URL / Redirect URL に本番ドメインを登録。
+2. **Vercel**: リポジトリを import。環境変数(`.env.example` 参照)を設定:
+   - `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY`
+   - `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL`
+   - `NEXT_PUBLIC_SITE_URL`(本番ドメイン)
+   - `ANALYSIS_WORKER_SECRET` と、同値の `CRON_SECRET`(`vercel.json` の毎分 Cron が `/api/analyze` を叩く際の認可)
+3. **初回管理者**: 自分のアカウントで登録後、`update public.users set role='admin' where id='<auth uid>';` を実行。
+4. LLM 障害時もサイト閲覧・投稿は継続する設計(解析だけ遅延)。ランニングコスト目標は月 5,000円以下。
 
 ## 設計上の約束
 

@@ -7,6 +7,7 @@ import { awardContribution } from "@/lib/contribution";
 import { logEvent } from "@/lib/events";
 import { isEmpathyMilestone } from "@config/reactions";
 import { resolutionPoints, scoringConfig } from "@config/scoring";
+import { canEmpathize } from "@/lib/rate-limit";
 import type { ResolvedBy } from "@/lib/database.types";
 
 export type EmpathyState = { empathized: boolean; count: number; error?: string };
@@ -31,6 +32,14 @@ export async function toggleEmpathy(postId: string): Promise<EmpathyState> {
     await supabase.from("empathies").delete().eq("id", existing.id);
     empathized = false;
   } else {
+    // レートリミット(§7 わかる: 200回/日/ユーザー)。付ける操作のみ制限。
+    if (!(await canEmpathize(user.id))) {
+      return {
+        empathized: false,
+        count: await empathyCount(supabase, postId),
+        error: "本日の「わかる」上限に達しました(1日200回まで)。",
+      };
+    }
     const { error } = await supabase
       .from("empathies")
       .insert({ post_id: postId, user_id: user.id });
