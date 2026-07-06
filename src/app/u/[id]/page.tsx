@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/auth";
@@ -53,9 +54,19 @@ export default async function ProfilePage({
   return (
     <div className="space-y-6">
       <section className="rounded-2xl border border-neutral-200 bg-white p-6">
-        <div className="flex items-center gap-2">
-          <h1 className="text-xl font-bold">{profile.display_name}</h1>
-          <GradeBadge score={profile.contribution_score} />
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold">{profile.display_name}</h1>
+            <GradeBadge score={profile.contribution_score} />
+          </div>
+          {isSelf && (
+            <Link
+              href={`/u/${profile.id}/edit`}
+              className="text-sm text-brand-600 hover:underline"
+            >
+              編集
+            </Link>
+          )}
         </div>
         {profile.bio && (
           <p className="mt-2 whitespace-pre-wrap text-sm text-neutral-600">

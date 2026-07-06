@@ -1,14 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-
-export const REPORT_REASONS = [
-  { value: "spam", label: "スパム・宣伝" },
-  { value: "abuse", label: "誹謗中傷・攻撃的" },
-  { value: "privacy", label: "個人情報が含まれる" },
-  { value: "sensitive", label: "センシティブ・不適切" },
-  { value: "other", label: "その他" },
-] as const;
+import { REPORT_REASONS } from "@/lib/reports/reasons";
 
 const REASON_VALUES = REPORT_REASONS.map((r) => r.value) as readonly string[];
 

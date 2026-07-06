@@ -5,6 +5,7 @@ import { getAuthUser } from "@/lib/auth";
 import { PostCard } from "@/components/PostCard";
 import { CategoryTabs } from "@/components/CategoryTabs";
 import { SortTabs } from "@/components/SortTabs";
+import { PostedBanner } from "@/components/PostedBanner";
 
 // 常に最新の投稿を反映(即時公開)。
 export const dynamic = "force-dynamic";
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: { sort?: string };
+  searchParams: { sort?: string; posted?: string };
 }) {
   const sort: SortMode = searchParams.sort === "new" ? "new" : "featured";
   const [posts, categories, user] = await Promise.all([
@@ -23,6 +24,8 @@ export default async function HomePage({
 
   return (
     <div className="space-y-6">
+      <PostedBanner show={searchParams.posted === "1"} />
+
       {!user && (
         <section className="rounded-2xl bg-brand-50 p-6">
           <h1 className="text-xl font-bold text-brand-800">

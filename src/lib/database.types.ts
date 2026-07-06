@@ -20,6 +20,7 @@ export type Frequency = "daily" | "weekly" | "monthly" | "rarely";
 export type SolutionStatus = "active" | "paused";
 export type SolutionSource = "master" | "ai_generated";
 export type ReportStatus = "open" | "reviewing" | "closed";
+export type Gender = "male" | "female" | "other" | "unspecified";
 
 export interface Database {
   public: {
@@ -29,6 +30,8 @@ export interface Database {
           id: string;
           display_name: string;
           bio: string | null;
+          gender: Gender | null;
+          age: number | null;
           role: UserRole;
           contribution_score: number;
           created_at: string;
@@ -37,6 +40,8 @@ export interface Database {
           id: string;
           display_name: string;
           bio?: string | null;
+          gender?: Gender | null;
+          age?: number | null;
           role?: UserRole;
           contribution_score?: number;
           created_at?: string;
@@ -44,6 +49,8 @@ export interface Database {
         Update: {
           display_name?: string;
           bio?: string | null;
+          gender?: Gender | null;
+          age?: number | null;
           role?: UserRole;
           contribution_score?: number;
         };

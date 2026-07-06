@@ -63,7 +63,8 @@ export async function createPost(
   enqueueAnalysis(data.id);
 
   revalidatePath("/");
-  redirect(`/posts/${postHandle(data.id, data.title)}`);
+  // 投稿完了をホーム画面で通知するため、確認バナー表示用のクエリを付けて遷移する。
+  redirect(`/?posted=1`);
 }
 
 /** F2 投稿編集(投稿者のみ)。RLS で本人以外は更新不可。 */
