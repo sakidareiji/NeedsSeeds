@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/auth";
 import { PostCard } from "@/components/PostCard";
-import { LIST_SELECT, type PostListItem } from "@/lib/posts/queries";
+import { LIST_SELECT, attachViewerEmpathized, type PostListItem } from "@/lib/posts/queries";
 import { GradeBadge } from "@/components/GradeBadge";
 import { nextGrade } from "@config/grades";
 
@@ -46,7 +46,11 @@ export default async function ProfilePage({
     .neq("status", "deleted")
     .order("created_at", { ascending: false });
 
-  const posts = (postsData ?? []) as unknown as PostListItem[];
+  const rawPosts = (postsData ?? []) as unknown as Omit<
+    PostListItem,
+    "viewer_empathized"
+  >[];
+  const posts = await attachViewerEmpathized(supabase, rawPosts);
   const resolvedCount = posts.filter((p) => p.resolved_at).length;
   const totalEmpathy = posts.reduce((s, p) => s + p.empathy_count, 0);
   const progress = nextGrade(profile.contribution_score);
@@ -108,7 +112,9 @@ export default async function ProfilePage({
             まだ投稿がありません。
           </p>
         ) : (
-          posts.map((p) => <PostCard key={p.id} post={p} />)
+          posts.map((p) => (
+            <PostCard key={p.id} post={p} currentUserId={authUser?.id ?? null} />
+          ))
         )}
       </section>
     </div>

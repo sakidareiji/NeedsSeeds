@@ -15,6 +15,8 @@ export type PostListItem = {
   created_at: string;
   category: { id: number; slug: string; name: string } | null;
   author: { id: string; display_name: string; contribution_score: number } | null;
+  /** 閲覧者自身がこの投稿に「わかる」を付けているか(未ログイン時は false)。 */
+  viewer_empathized: boolean;
 };
 
 export type PostDetail = PostListItem & {
@@ -28,6 +30,32 @@ export const LIST_SELECT =
   "id, title, body, severity, frequency, empathy_count, quality_score, status, resolved_at, created_at, category:categories(id, slug, name), author:users(id, display_name, contribution_score)";
 
 export type SortMode = "featured" | "new";
+
+/**
+ * 一覧の各投稿に、閲覧者自身の「わかる」状態を付与する(未ログイン時は全て false)。
+ * listPosts() と、独自にクエリを組む画面(プロフィール等)の両方から呼ぶ。
+ */
+export async function attachViewerEmpathized(
+  supabase: ReturnType<typeof createClient>,
+  items: Omit<PostListItem, "viewer_empathized">[]
+): Promise<PostListItem[]> {
+  if (items.length === 0) return [];
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return items.map((p) => ({ ...p, viewer_empathized: false }));
+
+  const { data } = await supabase
+    .from("empathies")
+    .select("post_id")
+    .eq("user_id", user.id)
+    .in(
+      "post_id",
+      items.map((p) => p.id)
+    );
+  const empathized = new Set((data ?? []).map((e) => e.post_id));
+  return items.map((p) => ({ ...p, viewer_empathized: empathized.has(p.id) }));
+}
 
 /** Fetch published posts for a list view, optionally filtered by category. */
 export async function listPosts(opts: {
@@ -61,24 +89,29 @@ export async function listPosts(opts: {
     .order("created_at", { ascending: false })
     .limit(opts.sort === "new" ? limit : Math.max(limit, 100));
 
-  const rows = (data ?? []) as unknown as PostListItem[];
+  const rows = (data ?? []) as unknown as Omit<PostListItem, "viewer_empathized">[];
 
-  if (opts.sort === "new") return rows.slice(0, limit);
+  const final =
+    opts.sort === "new"
+      ? rows.slice(0, limit)
+      : (() => {
+          const now = new Date();
+          return rows
+            .map((p) => ({
+              p,
+              score: featuredScore({
+                createdAt: new Date(p.created_at),
+                empathyCount: p.empathy_count,
+                qualityScore: p.quality_score,
+                now,
+              }),
+            }))
+            .sort((a, b) => b.score - a.score)
+            .slice(0, limit)
+            .map(({ p }) => p);
+        })();
 
-  const now = new Date();
-  return rows
-    .map((p) => ({
-      p,
-      score: featuredScore({
-        createdAt: new Date(p.created_at),
-        empathyCount: p.empathy_count,
-        qualityScore: p.quality_score,
-        now,
-      }),
-    }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
-    .map(({ p }) => p);
+  return attachViewerEmpathized(supabase, final);
 }
 
 /**

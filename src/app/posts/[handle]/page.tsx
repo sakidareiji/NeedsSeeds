@@ -167,6 +167,7 @@ export default async function PostDetailPage({
           initialCount={post.empathy_count}
           initialEmpathized={empathized}
           canReact={!!user}
+          isOwnPost={isOwner}
         />
         {isOwner
           ? !post.resolved_at && (
@@ -182,9 +183,12 @@ export default async function PostDetailPage({
             )}
         {isOwner ? (
           <div className="ml-auto flex items-center gap-3">
-            <Link href={`/posts/${handle}/edit`} className="hover:text-brand-600">
-              編集
-            </Link>
+            {/* 「わかる」が一つでも付いたら編集不可(共感後の改ざん防止) */}
+            {post.empathy_count === 0 && (
+              <Link href={`/posts/${handle}/edit`} className="hover:text-brand-600">
+                編集
+              </Link>
+            )}
             <DeletePostButton postId={post.id} />
           </div>
         ) : (

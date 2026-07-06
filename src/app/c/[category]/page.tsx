@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { listPosts, type SortMode } from "@/lib/posts/queries";
 import { getActiveCategories } from "@/lib/categories";
+import { getAuthUser } from "@/lib/auth";
 import { PostCard } from "@/components/PostCard";
 import { CategoryTabs } from "@/components/CategoryTabs";
 import { SortTabs } from "@/components/SortTabs";
@@ -30,7 +31,10 @@ export default async function CategoryPage({
   if (!cat) notFound();
 
   const sort: SortMode = searchParams.sort === "new" ? "new" : "featured";
-  const posts = await listPosts({ categorySlug: cat.slug, sort });
+  const [posts, user] = await Promise.all([
+    listPosts({ categorySlug: cat.slug, sort }),
+    getAuthUser(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -46,7 +50,7 @@ export default async function CategoryPage({
       ) : (
         <div className="space-y-3">
           {posts.map((p) => (
-            <PostCard key={p.id} post={p} />
+            <PostCard key={p.id} post={p} currentUserId={user?.id ?? null} />
           ))}
         </div>
       )}

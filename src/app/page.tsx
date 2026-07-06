@@ -58,7 +58,7 @@ export default async function HomePage({
       ) : (
         <div className="space-y-3">
           {posts.map((p) => (
-            <PostCard key={p.id} post={p} />
+            <PostCard key={p.id} post={p} currentUserId={user?.id ?? null} />
           ))}
         </div>
       )}

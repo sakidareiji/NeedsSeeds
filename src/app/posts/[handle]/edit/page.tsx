@@ -5,7 +5,7 @@ import { updatePost } from "@/lib/posts/actions";
 import { getActiveCategories } from "@/lib/categories";
 import { getPostById } from "@/lib/posts/queries";
 import { getAuthUser } from "@/lib/auth";
-import { idFromHandle } from "@/lib/format";
+import { idFromHandle, postHandle } from "@/lib/format";
 
 export const metadata: Metadata = { title: "投稿を編集" };
 
@@ -23,6 +23,8 @@ export default async function EditPostPage({
   const post = await getPostById(id);
   if (!post || post.status === "deleted") notFound();
   if (post.user_id !== user.id) notFound(); // only the author may edit
+  // 「わかる」が一つでも付いたら編集不可(URL直打ちでの回避も防ぐ)。
+  if (post.empathy_count > 0) redirect(`/posts/${postHandle(post.id, post.title)}`);
 
   const categories = await getActiveCategories();
   const action = updatePost.bind(null, post.id);

@@ -20,6 +20,24 @@ export async function toggleEmpathy(postId: string): Promise<EmpathyState> {
   } = await supabase.auth.getUser();
   if (!user) return { empathized: false, count: 0, error: "ログインが必要です" };
 
+  // 自分の投稿には「わかる」を押せない(クライアント側の抑止に加え、
+  // サーバー側でも必ず検証する)。
+  const { data: targetPost } = await supabase
+    .from("posts")
+    .select("user_id")
+    .eq("id", postId)
+    .maybeSingle();
+  if (!targetPost) {
+    return { empathized: false, count: 0, error: "対象の投稿が見つかりません" };
+  }
+  if (targetPost.user_id === user.id) {
+    return {
+      empathized: false,
+      count: await empathyCount(supabase, postId),
+      error: "自分の投稿には「わかる」を押せません",
+    };
+  }
+
   const { data: existing } = await supabase
     .from("empathies")
     .select("id")
