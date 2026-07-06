@@ -93,6 +93,7 @@ export interface Database {
           resolved_at: string | null;
           resolved_by: ResolvedBy | null;
           resolved_solution_id: string | null;
+          resolution_note: string | null;
           empathy_count: number;
           quality_score: number | null;
           created_at: string;
@@ -121,6 +122,7 @@ export interface Database {
           resolved_at?: string | null;
           resolved_by?: ResolvedBy | null;
           resolved_solution_id?: string | null;
+          resolution_note?: string | null;
         };
         Relationships: [];
       };

@@ -141,6 +141,18 @@ export default async function PostDetailPage({
         {post.body}
       </div>
 
+      {/* 投稿者が報告した解決方法(F6/F9)。自力・その他で記述があれば公開する。 */}
+      {post.resolved_at && post.resolution_note && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
+          <p className="mb-1 text-sm font-medium text-emerald-800">
+            投稿者による解決方法
+          </p>
+          <p className="whitespace-pre-wrap text-sm text-emerald-900/80">
+            {post.resolution_note}
+          </p>
+        </div>
+      )}
+
       {/* 解決のヒント(F4): マスタ提示 + 一般アドバイスを同一UIで。センシティブ/
           NG投稿には何も出さない(パイプライン側で post_solutions を作らない)。 */}
       <SolutionHints hints={hints} />

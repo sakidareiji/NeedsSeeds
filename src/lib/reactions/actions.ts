@@ -110,6 +110,8 @@ async function onEmpathyAdded(postId: string, actorId: string): Promise<void> {
 export type ResolutionInput = {
   resolvedBy: ResolvedBy;
   solutionId?: string | null;
+  /** 「自力で解決」「その他」の解決方法(自由記述)。自力は必須。 */
+  note?: string | null;
 };
 
 /** F6 解決報告(投稿者のみ)。解決報告に貢献スコアを加点(高共感はボーナス)。 */
@@ -148,12 +150,26 @@ export async function reportResolution(
     solutionId = input.solutionId;
   }
 
+  // 「自力で解決」「その他」は解決方法の自由記述を保存する(自力は必須)。
+  // 解決策で解決した場合は resolved_solution_id が根拠になるため記述は持たない。
+  let note: string | null = null;
+  if (input.resolvedBy !== "solution") {
+    note = input.note?.trim() || null;
+    if (input.resolvedBy === "self" && !note) {
+      return { ok: false, error: "どうやって解決したかを記入してください" };
+    }
+    if (note && note.length > 1000) {
+      return { ok: false, error: "解決方法は1000字以内で入力してください" };
+    }
+  }
+
   const { error } = await supabase
     .from("posts")
     .update({
       resolved_at: new Date().toISOString(),
       resolved_by: input.resolvedBy,
       resolved_solution_id: solutionId,
+      resolution_note: note,
     })
     .eq("id", postId)
     .eq("user_id", user.id);

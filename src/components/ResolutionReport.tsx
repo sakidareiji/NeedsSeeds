@@ -21,17 +21,25 @@ export function ResolutionReport({
   const [solutionId, setSolutionId] = useState<string>(
     presentedSolutions[0]?.id ?? ""
   );
+  const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
   const hasSolutions = presentedSolutions.length > 0;
+  // 構造化された解決策を持たない解決方法は自由記述で残す(自力は必須)。
+  const needsNote = resolvedBy === "self" || resolvedBy === "other";
 
   function submit() {
     setError(null);
+    if (resolvedBy === "self" && !note.trim()) {
+      setError("どうやって解決したかを記入してください");
+      return;
+    }
     start(async () => {
       const res = await reportResolution(postId, {
         resolvedBy,
         solutionId: resolvedBy === "solution" ? solutionId || null : null,
+        note: needsNote ? note : null,
       });
       if (res.ok) {
         router.refresh();
@@ -95,6 +103,31 @@ export function ResolutionReport({
               </option>
             ))}
           </select>
+        )}
+
+        {needsNote && (
+          <div className="mt-1">
+            <label
+              htmlFor="resolution_note"
+              className="mb-1 block text-sm text-emerald-800"
+            >
+              どうやって解決しましたか?
+              {resolvedBy === "self" ? (
+                <span className="text-red-500">(必須)</span>
+              ) : (
+                <span className="text-neutral-400">(任意)</span>
+              )}
+            </label>
+            <textarea
+              id="resolution_note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              maxLength={1000}
+              rows={3}
+              placeholder="同じ困りごとを持つ人の参考になります。試したこと・効果があったことを書いてみてください。"
+              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm"
+            />
+          </div>
         )}
       </div>
 
