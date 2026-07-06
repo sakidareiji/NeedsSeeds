@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPostById } from "@/lib/posts/queries";
 import { getAuthUser } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 import { getPostHints, getFollowUpQuestion } from "@/lib/solutions";
 import { logImpressions } from "@/lib/events";
 import {
@@ -16,6 +17,10 @@ import type { Frequency } from "@/lib/database.types";
 import { DeletePostButton } from "@/components/DeletePostButton";
 import { SolutionHints } from "@/components/SolutionHints";
 import { FollowUpComment } from "@/components/FollowUpComment";
+import { EmpathyButton } from "@/components/EmpathyButton";
+import { ResolutionReport } from "@/components/ResolutionReport";
+import { HelpfulButton } from "@/components/HelpfulButton";
+import { GradeBadge } from "@/components/GradeBadge";
 
 export async function generateMetadata({
   params,
@@ -61,6 +66,24 @@ export default async function PostDetailPage({
   ]);
   const handle = postHandle(post.id, post.title);
 
+  // 現在ユーザーのリアクション状態(F5/F6)。
+  let empathized = false;
+  let helpfulMarked = false;
+  if (user) {
+    const supabase = createClient();
+    const [{ data: e }, { data: h }] = await Promise.all([
+      supabase.from("empathies").select("id").eq("post_id", post.id).eq("user_id", user.id).maybeSingle(),
+      supabase.from("helpful_marks").select("id").eq("post_id", post.id).eq("user_id", user.id).maybeSingle(),
+    ]);
+    empathized = !!e;
+    helpfulMarked = !!h;
+  }
+
+  // 解決報告の「提示された解決策」候補(マスタのみ)。
+  const presentedSolutions = hints
+    .filter((hn) => hn.source === "master" && hn.solution)
+    .map((hn) => ({ id: hn.solution!.id, name: hn.solution!.name }));
+
   // 解決のヒント表示(imp)を計測(F9)。描画をブロックしないよう fire-and-forget。
   if (hints.length > 0) {
     void logImpressions(
@@ -99,9 +122,12 @@ export default async function PostDetailPage({
 
         <div className="mt-2 flex items-center gap-3 text-sm text-neutral-500">
           {post.author && (
-            <Link href={`/u/${post.author.id}`} className="hover:text-brand-600">
-              {post.author.display_name}
-            </Link>
+            <span className="flex items-center gap-1.5">
+              <Link href={`/u/${post.author.id}`} className="hover:text-brand-600">
+                {post.author.display_name}
+              </Link>
+              <GradeBadge score={post.author.contribution_score} />
+            </span>
           )}
           <span>困る度合い: {SEVERITY_LABELS[post.severity]}</span>
           {post.frequency && (
@@ -133,9 +159,26 @@ export default async function PostDetailPage({
         />
       )}
 
-      <div className="flex items-center gap-4 border-t border-neutral-200 pt-4 text-sm text-neutral-500">
-        <span>わかる {post.empathy_count}</span>
-        {/* M3: 「わかる」ボタン / 解決報告 UI */}
+      <div className="flex flex-wrap items-center gap-3 border-t border-neutral-200 pt-4 text-sm text-neutral-500">
+        {/* F5「わかる」/ F6 解決報告・私も解決した */}
+        <EmpathyButton
+          postId={post.id}
+          initialCount={post.empathy_count}
+          initialEmpathized={empathized}
+          canReact={!!user}
+        />
+        {isOwner
+          ? !post.resolved_at && (
+              <ResolutionReport postId={post.id} presentedSolutions={presentedSolutions} />
+            )
+          : hints.length > 0 && (
+              // 解決のヒントがある投稿にだけ「私も解決した」を出す(F6)
+              <HelpfulButton
+                postId={post.id}
+                initialMarked={helpfulMarked}
+                canReact={!!user}
+              />
+            )}
         {isOwner && (
           <div className="ml-auto flex items-center gap-3">
             <Link href={`/posts/${handle}/edit`} className="hover:text-brand-600">

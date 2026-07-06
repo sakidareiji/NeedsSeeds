@@ -1,0 +1,68 @@
+import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
+import type { Json } from "@/lib/database.types";
+
+export type NotificationType =
+  | "empathy_milestone"
+  | "solution_presented"
+  | "contribution_earned"
+  | "grade_up"
+  | "resolution_milestone"
+  | "admin";
+
+/** 通知を1件作成する(F8)。作成はサービスロール(RLSでクライアント作成は不可)。 */
+export async function createNotification(input: {
+  userId: string;
+  type: NotificationType;
+  payload?: Record<string, unknown>;
+}): Promise<void> {
+  const admin = createAdminClient();
+  await admin.from("notifications").insert({
+    user_id: input.userId,
+    type: input.type,
+    payload: (input.payload ?? {}) as Json,
+  });
+}
+
+export type NotificationRow = {
+  id: string;
+  type: string;
+  payload: Record<string, unknown>;
+  read_at: string | null;
+  created_at: string;
+};
+
+/** 自分の通知一覧(F8)。RLS により自分の分のみ。 */
+export async function getNotifications(limit = 50): Promise<NotificationRow[]> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("notifications")
+    .select("id, type, payload, read_at, created_at")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  return (data ?? []) as unknown as NotificationRow[];
+}
+
+/** 未読件数(ベルのバッジ用)。 */
+export async function getUnreadCount(): Promise<number> {
+  const supabase = createClient();
+  const { count } = await supabase
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .is("read_at", null);
+  return count ?? 0;
+}
+
+/** 自分の未読通知をすべて既読にする。 */
+export async function markAllRead(): Promise<void> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .is("read_at", null)
+    .eq("user_id", user.id);
+}

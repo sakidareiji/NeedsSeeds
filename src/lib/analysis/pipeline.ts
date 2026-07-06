@@ -2,6 +2,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { analyzePost } from "@/lib/analysis/anthropic";
 import type { AnalysisOutput } from "@/lib/analysis/schema";
 import type { Json } from "@/lib/database.types";
+import { awardContribution } from "@/lib/contribution";
+import { createNotification } from "@/lib/notifications";
+import { assessmentPoints } from "@config/scoring";
 
 export type AnalysisRuleResult = {
   hide: boolean; // NG(誹謗中傷/個人情報/スパム)→ 自動非公開(F7)
@@ -62,7 +65,7 @@ export async function runAnalysis(postId: string): Promise<void> {
 
   const { data: post } = await admin
     .from("posts")
-    .select("id, title, body, severity, frequency, status, category_id")
+    .select("id, user_id, title, body, severity, frequency, status, category_id")
     .eq("id", postId)
     .maybeSingle();
 
@@ -114,6 +117,13 @@ export async function runAnalysis(postId: string): Promise<void> {
       { onConflict: "post_id" }
     );
 
+    // 解決策の提示通知は「初めて提示されたとき」だけ出す(編集での再解析で
+    // 重複通知しないよう、差し替え前に既存有無を確認する)。
+    const { count: prevSolutionCount } = await admin
+      .from("post_solutions")
+      .select("id", { count: "exact", head: true })
+      .eq("post_id", post.id);
+
     await admin.from("post_solutions").delete().eq("post_id", post.id);
     if (postSolutions.length > 0) {
       await admin
@@ -132,8 +142,27 @@ export async function runAnalysis(postId: string): Promise<void> {
       })
       .eq("id", post.id);
 
-    // NOTE(M3): 貢献スコアの付与(contribution_logs / users.contribution_score /
-    // 通知)と、NG時の運営通知はここにフックする。
+    // 貢献スコア付与(F3-6/F6)。モデレーションNG(誹謗中傷/個人情報/スパム)は0点。
+    // 冪等(1投稿1回)なので編集による再解析で二重加点しない。
+    await awardContribution({
+      userId: post.user_id,
+      postId: post.id,
+      points: assessmentPoints({
+        qualityScore: output.quality_score,
+        flaggedHarmful: rules.hide,
+      }),
+      reason: "ai_assessment",
+      notify: true,
+    });
+
+    // 解決策が提示されたら投稿者へ通知(F6)。初回提示時のみ。
+    if (postSolutions.length > 0 && (prevSolutionCount ?? 0) === 0) {
+      await createNotification({
+        userId: post.user_id,
+        type: "solution_presented",
+        payload: { postId: post.id, count: postSolutions.length },
+      });
+    }
   } catch {
     // 解析失敗 → 人力確認キュー(F3)。投稿・閲覧は影響を受けない。
     await admin.from("posts").update({ ai_status: "failed" }).eq("id", post.id);

@@ -233,6 +233,66 @@ export interface Database {
         };
         Relationships: [];
       };
+      empathies: {
+        Row: {
+          id: string;
+          post_id: string;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: { id?: string; post_id: string; user_id: string };
+        Update: { post_id?: string; user_id?: string };
+        Relationships: [];
+      };
+      helpful_marks: {
+        Row: {
+          id: string;
+          post_id: string;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: { id?: string; post_id: string; user_id: string };
+        Update: { post_id?: string; user_id?: string };
+        Relationships: [];
+      };
+      contribution_logs: {
+        Row: {
+          id: string;
+          user_id: string;
+          post_id: string | null;
+          points: number;
+          reason: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          post_id?: string | null;
+          points: number;
+          reason: string;
+        };
+        Update: { points?: number; reason?: string };
+        Relationships: [];
+      };
+      notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          type: string;
+          payload: Json;
+          read_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          type: string;
+          payload?: Json;
+          read_at?: string | null;
+        };
+        Update: { read_at?: string | null };
+        Relationships: [];
+      };
     };
     Views: {
       post_public_analysis: {

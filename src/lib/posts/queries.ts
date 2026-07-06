@@ -14,7 +14,7 @@ export type PostListItem = {
   resolved_at: string | null;
   created_at: string;
   category: { id: number; slug: string; name: string } | null;
-  author: { id: string; display_name: string } | null;
+  author: { id: string; display_name: string; contribution_score: number } | null;
 };
 
 export type PostDetail = PostListItem & {
@@ -25,7 +25,7 @@ export type PostDetail = PostListItem & {
 };
 
 export const LIST_SELECT =
-  "id, title, body, severity, frequency, empathy_count, quality_score, status, resolved_at, created_at, category:categories(id, slug, name), author:users(id, display_name)";
+  "id, title, body, severity, frequency, empathy_count, quality_score, status, resolved_at, created_at, category:categories(id, slug, name), author:users(id, display_name, contribution_score)";
 
 export type SortMode = "featured" | "new";
 
@@ -91,7 +91,7 @@ export const getPostById = cache(
     const { data } = await supabase
       .from("posts")
       .select(
-        "id, user_id, category_id, title, body, severity, frequency, empathy_count, quality_score, status, ai_status, resolved_at, created_at, updated_at, category:categories(id, slug, name), author:users(id, display_name)"
+        "id, user_id, category_id, title, body, severity, frequency, empathy_count, quality_score, status, ai_status, resolved_at, created_at, updated_at, category:categories(id, slug, name), author:users(id, display_name, contribution_score)"
       )
       .eq("id", id)
       .maybeSingle();

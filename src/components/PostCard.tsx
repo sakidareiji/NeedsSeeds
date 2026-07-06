@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { PostListItem } from "@/lib/posts/queries";
 import { postHandle, timeAgo } from "@/lib/format";
+import { GradeBadge } from "@/components/GradeBadge";
 
 export function PostCard({ post }: { post: PostListItem }) {
   return (
@@ -33,9 +34,10 @@ export function PostCard({ post }: { post: PostListItem }) {
 
       <p className="mt-1 line-clamp-2 text-sm text-neutral-600">{post.body}</p>
 
-      <div className="mt-2 flex items-center gap-4 text-xs text-neutral-500">
+      <div className="mt-2 flex items-center gap-2 text-xs text-neutral-500">
         <span>{post.author?.display_name ?? "退会したユーザー"}</span>
-        <span>わかる {post.empathy_count}</span>
+        {post.author && <GradeBadge score={post.author.contribution_score} />}
+        <span className="ml-2">わかる {post.empathy_count}</span>
       </div>
     </article>
   );

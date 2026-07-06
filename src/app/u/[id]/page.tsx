@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/auth";
 import { PostCard } from "@/components/PostCard";
 import { LIST_SELECT, type PostListItem } from "@/lib/posts/queries";
+import { GradeBadge } from "@/components/GradeBadge";
+import { nextGrade } from "@config/grades";
 
 export async function generateMetadata({
   params,
@@ -46,14 +48,23 @@ export default async function ProfilePage({
   const posts = (postsData ?? []) as unknown as PostListItem[];
   const resolvedCount = posts.filter((p) => p.resolved_at).length;
   const totalEmpathy = posts.reduce((s, p) => s + p.empathy_count, 0);
+  const progress = nextGrade(profile.contribution_score);
 
   return (
     <div className="space-y-6">
       <section className="rounded-2xl border border-neutral-200 bg-white p-6">
-        <h1 className="text-xl font-bold">{profile.display_name}</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl font-bold">{profile.display_name}</h1>
+          <GradeBadge score={profile.contribution_score} />
+        </div>
         {profile.bio && (
           <p className="mt-2 whitespace-pre-wrap text-sm text-neutral-600">
             {profile.bio}
+          </p>
+        )}
+        {progress && (
+          <p className="mt-2 text-xs text-neutral-500">
+            次のグレード「{progress.grade.name}」まであと {progress.remaining}
           </p>
         )}
         <dl className="mt-4 flex flex-wrap gap-6 text-sm">
