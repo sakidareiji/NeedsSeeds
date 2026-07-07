@@ -3,7 +3,7 @@
 日常や業務の「困りごと」を投稿すると、AIが解析して解決策(アフィリエイト案件・一般アドバイス)を自動提示し、良質な投稿には AI 査定による**貢献スコア**(換金不可)が蓄積される Web サービス。
 
 - 仕様書: [`needs_seeds_mvp_spec.md`](./needs_seeds_mvp_spec.md)
-- スタック: Next.js (App Router, TypeScript) / Supabase (PostgreSQL, Auth, RLS) / Anthropic API / Tailwind CSS / Vercel
+- スタック: Next.js (App Router, TypeScript) / Supabase (PostgreSQL, Auth, RLS) / Gemini API(Anthropic API にも切替可) / Tailwind CSS / Vercel
 
 ## 実装状況(マイルストーン)
 
@@ -21,7 +21,7 @@
 
 - Node.js 20+ / npm
 - [Supabase CLI](https://supabase.com/docs/guides/cli)(ローカル DB 用。内部で Docker を使用)
-- Anthropic API キー(M2 以降)
+- Gemini API キー(M2 のAI解析用。Anthropic API キーでも可)
 
 ### 手順
 
@@ -51,8 +51,11 @@ npm run dev            # http://localhost:3000
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `supabase start` が出力する anon key |
 | `SUPABASE_SERVICE_ROLE_KEY` | 同 service_role key(**サーバ専用**・RLS をバイパス。M2/M4 で使用) |
 | `NEXT_PUBLIC_SITE_URL` | 例 `http://localhost:3000` |
-| `ANTHROPIC_API_KEY` | Anthropic API キー(M2 以降) |
-| `ANTHROPIC_MODEL` | 解析に使うモデル ID(既定 `claude-sonnet-4-6`) |
+| `LLM_PROVIDER` | AI解析のプロバイダ: `gemini` / `anthropic`。未指定ならキーがある方(両方なら gemini) |
+| `GEMINI_API_KEY` | Gemini API キー(既定プロバイダ。M2 以降) |
+| `GEMINI_MODEL` | 解析に使うモデル ID(既定 `gemini-2.5-flash`) |
+| `ANTHROPIC_API_KEY` | Anthropic API キー(切替用。実装は残している) |
+| `ANTHROPIC_MODEL` | 同モデル ID(既定 `claude-sonnet-4-6`) |
 | `ANALYSIS_WORKER_SECRET` | 解析ワーカー(`/api/analyze`)の共有シークレット。未設定だと 503 |
 
 ### AI 解析パイプライン(M2)の動作
@@ -131,7 +134,7 @@ supabase/seed.sql   初期カテゴリのシード
 1. **Supabase(本番)**: プロジェクトを作成し、`supabase link` → `supabase db push` でマイグレーションを適用、`supabase/seed.sql` のカテゴリを投入。Auth の Google プロバイダ設定と、Site URL / Redirect URL に本番ドメインを登録。メール確認を有効化し、Confirm signup テンプレートを設定(上記「メール確認(F1)」参照)。
 2. **Vercel**: リポジトリを import。環境変数(`.env.example` 参照)を設定:
    - `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY`
-   - `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL`
+   - `LLM_PROVIDER` / `GEMINI_API_KEY` / `GEMINI_MODEL`(Anthropic を使う場合は `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL`)
    - `NEXT_PUBLIC_SITE_URL`(本番ドメイン)
    - `ANALYSIS_WORKER_SECRET` と、同値の `CRON_SECRET`(`vercel.json` の毎分 Cron が `/api/analyze` を叩く際の認可)
 3. **初回管理者**: 自分のアカウントで登録後、`update public.users set role='admin' where id='<auth uid>';` を実行。

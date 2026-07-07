@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { analyzePost } from "@/lib/analysis/anthropic";
+import { analyzePost } from "@/lib/analysis/llm";
 import type { AnalysisOutput } from "@/lib/analysis/schema";
 import type { Json } from "@/lib/database.types";
 import { awardContribution } from "@/lib/contribution";
