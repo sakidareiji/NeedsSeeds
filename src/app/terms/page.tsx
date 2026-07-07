@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "利用規約" };
 
-// ドラフト版。【要記入】の箇所を埋め、可能なら公開前に専門家の確認を受けること。
+// 公開前に専門家(弁護士等)の確認を受けることを推奨。
 const UPDATED = "2026年7月8日";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -108,7 +108,7 @@ export default function TermsPage() {
       <Section title="第10条(準拠法・管轄)">
         <p>
           本規約は日本法に準拠します。本サービスに関する紛争は、
-          【要記入: 運営者所在地】を管轄する地方裁判所を第一審の専属的合意管轄裁判所とします。
+          金沢地方裁判所を第一審の専属的合意管轄裁判所とします。
         </p>
       </Section>
     </article>

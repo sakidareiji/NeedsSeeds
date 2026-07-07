@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "プライバシーポリシー" };
 
-// ドラフト版。【要記入】の箇所を埋め、可能なら公開前に専門家の確認を受けること。
+// 公開前に専門家(弁護士等)の確認を受けることを推奨。
 const UPDATED = "2026年7月8日";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -88,7 +88,10 @@ export default function PrivacyPage() {
       </Section>
 
       <Section title="8. お問い合わせ">
-        <p>【要記入: 問い合わせ先メールアドレスまたはフォームURL】</p>
+        {/* TODO(公開前): 専用の問い合わせアドレスを開設したらここに記載する */}
+        <p>
+          お問い合わせは、運営者情報ページに記載の連絡先までお願いします。
+        </p>
       </Section>
 
       <Section title="9. 改定">

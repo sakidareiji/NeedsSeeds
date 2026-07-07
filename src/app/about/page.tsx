@@ -3,8 +3,6 @@ import Link from "next/link";
 
 export const metadata: Metadata = { title: "運営者情報" };
 
-// ドラフト版。【要記入】の箇所を埋めてから公開すること。
-
 export default function AboutPage() {
   return (
     <article className="mx-auto max-w-3xl space-y-6 text-sm leading-relaxed text-neutral-700">
@@ -24,11 +22,12 @@ export default function AboutPage() {
         <dl className="space-y-1">
           <div className="flex gap-4">
             <dt className="w-24 shrink-0 text-neutral-500">運営者</dt>
-            <dd>【要記入: 運営者名または屋号】</dd>
+            <dd>Needs Seeds 運営者(個人運営)</dd>
           </div>
           <div className="flex gap-4">
             <dt className="w-24 shrink-0 text-neutral-500">連絡先</dt>
-            <dd>【要記入: メールアドレスまたはフォームURL】</dd>
+            {/* TODO(公開前): 専用の問い合わせアドレスを開設したら差し替える */}
+            <dd>準備中(専用の問い合わせ窓口を開設予定です)</dd>
           </div>
         </dl>
       </section>
