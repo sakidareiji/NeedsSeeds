@@ -82,7 +82,19 @@ npm run dev            # http://localhost:3000
 > ⚠️ プロバイダを有効化せずに Google ボタンを押すと Supabase が
 > `Unsupported provider: provider is not enabled` を返します。有効化するまでは
 > `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=false`(既定)のままにしてください。
-> ローカルではメール確認は無効(`enable_confirmations = false`)なので、登録後すぐログインできます。
+
+### メール確認(F1)
+
+新規登録には確認メールのリンクを開く必要があります(`enable_confirmations = true`)。
+
+- 確認リンクは `/auth/confirm?token_hash=...&type=email` に着地し、`verifyOtp` で検証します
+  (登録したブラウザと別のブラウザでリンクを開いても動作します)。
+  テンプレートは `supabase/templates/confirmation.html`。
+- ローカルで届いたメールは http://localhost:54324 (Mailpit/Inbucket) で確認できます。
+- 未確認のままログインしようとするとエラーになり、確認メールの再送ボタンが表示されます。
+- 本番は Dashboard → Authentication で **Confirm email を有効化**し、
+  Email Templates の Confirm signup に `supabase/templates/confirmation.html` と
+  同じ内容(リンク先 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`)を設定します。
 
 ## スクリプト
 
@@ -116,7 +128,7 @@ supabase/seed.sql   初期カテゴリのシード
 
 ## デプロイ(Vercel + Supabase)
 
-1. **Supabase(本番)**: プロジェクトを作成し、`supabase link` → `supabase db push` でマイグレーションを適用、`supabase/seed.sql` のカテゴリを投入。Auth の Google プロバイダ設定と、Site URL / Redirect URL に本番ドメインを登録。
+1. **Supabase(本番)**: プロジェクトを作成し、`supabase link` → `supabase db push` でマイグレーションを適用、`supabase/seed.sql` のカテゴリを投入。Auth の Google プロバイダ設定と、Site URL / Redirect URL に本番ドメインを登録。メール確認を有効化し、Confirm signup テンプレートを設定(上記「メール確認(F1)」参照)。
 2. **Vercel**: リポジトリを import。環境変数(`.env.example` 参照)を設定:
    - `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY`
    - `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL`

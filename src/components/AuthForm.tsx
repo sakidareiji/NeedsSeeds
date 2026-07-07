@@ -35,11 +35,14 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // 未確認メールでのログイン失敗時に、確認メールの再送を案内する。
+  const [showResend, setShowResend] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setMessage(null);
+    setShowResend(false);
     setLoading(true);
     try {
       if (mode === "signup") {
@@ -74,8 +77,22 @@ export function AuthForm({ mode }: { mode: Mode }) {
       setError(
         err instanceof Error ? toJaAuthError(err.message) : "エラーが発生しました"
       );
+      if (err instanceof Error && /email not confirmed/i.test(err.message)) {
+        setShowResend(true);
+      }
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function resendConfirmation() {
+    setError(null);
+    const { error } = await supabase.auth.resend({ type: "signup", email });
+    if (error) {
+      setError(toJaAuthError(error.message));
+    } else {
+      setShowResend(false);
+      setMessage("確認メールを再送しました。メール内のリンクを開いてください。");
     }
   }
 
@@ -160,6 +177,15 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
         {error && <p className="text-sm text-red-600">{error}</p>}
         {message && <p className="text-sm text-brand-700">{message}</p>}
+        {showResend && (
+          <button
+            type="button"
+            onClick={resendConfirmation}
+            className="text-sm text-brand-600 hover:underline"
+          >
+            確認メールを再送する
+          </button>
+        )}
 
         <button
           type="submit"
