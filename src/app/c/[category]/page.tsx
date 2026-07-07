@@ -54,7 +54,7 @@ export default async function CategoryPage({
           このカテゴリにはまだ投稿がありません。
         </p>
       ) : (
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
           {posts.map((p) => (
             <PostCard key={p.id} post={p} currentUserId={user?.id ?? null} />
           ))}
