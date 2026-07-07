@@ -11,6 +11,14 @@ import { resolveProvider } from "@/lib/analysis/llm";
  */
 export type PrecheckResult = { advice: string | null };
 
+export type PrecheckInput = {
+  title: string;
+  body: string;
+  /** フォームで入力済みの値。渡すことで「既に答えている項目」を重ねて尋ねない。 */
+  severity?: number | null;
+  frequency?: string | null;
+};
+
 const precheckOutputSchema = z.object({
   needs_advice: z.boolean(),
   advice: z
@@ -31,18 +39,27 @@ function precheckPrompt(): string {
   return cachedPrompt;
 }
 
-function buildDraftContent(input: { title: string; body: string }): string {
-  return ["# 投稿の下書き", `タイトル: ${input.title}`, "本文:", input.body].join(
-    "\n"
-  );
+const FREQUENCY_JA: Record<string, string> = {
+  daily: "毎日",
+  weekly: "週数回",
+  monthly: "月数回",
+  rarely: "たまに",
+};
+
+function buildDraftContent(input: PrecheckInput): string {
+  return [
+    "# 投稿の下書き",
+    `タイトル: ${input.title}`,
+    `困る度合い(フォーム入力): ${input.severity ? `${input.severity}/5` : "(未入力)"}`,
+    `頻度(フォーム入力): ${input.frequency ? (FREQUENCY_JA[input.frequency] ?? input.frequency) : "(未入力)"}`,
+    "本文:",
+    input.body,
+  ].join("\n");
 }
 
 const TIMEOUT_MS = 10_000; // 投稿を待たせすぎない。超過時は呼び出し側で素通し
 
-async function precheckWithGemini(input: {
-  title: string;
-  body: string;
-}): Promise<PrecheckResult> {
+async function precheckWithGemini(input: PrecheckInput): Promise<PrecheckResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
   const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
@@ -88,10 +105,7 @@ async function precheckWithGemini(input: {
   return { advice: parsed.needs_advice ? parsed.advice : null };
 }
 
-async function precheckWithAnthropic(input: {
-  title: string;
-  body: string;
-}): Promise<PrecheckResult> {
+async function precheckWithAnthropic(input: PrecheckInput): Promise<PrecheckResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");
   const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
@@ -131,10 +145,7 @@ async function precheckWithAnthropic(input: {
 }
 
 /** 下書きをチェックし、必要な場合のみ助言を返す(リトライなし・1回だけ)。 */
-export async function precheckDraft(input: {
-  title: string;
-  body: string;
-}): Promise<PrecheckResult> {
+export async function precheckDraft(input: PrecheckInput): Promise<PrecheckResult> {
   return resolveProvider() === "gemini"
     ? precheckWithGemini(input)
     : precheckWithAnthropic(input);

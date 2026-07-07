@@ -29,6 +29,8 @@ function parse(formData: FormData) {
 export async function checkPostDraft(input: {
   title: string;
   body: string;
+  severity?: number | null;
+  frequency?: string | null;
 }): Promise<{ advice: string | null }> {
   const title = String(input.title ?? "").slice(0, 60);
   const body = String(input.body ?? "").slice(0, 2000);
@@ -41,7 +43,13 @@ export async function checkPostDraft(input: {
   if (!user) return { advice: null };
 
   try {
-    return await precheckDraft({ title, body });
+    // フォームで入力済みの困る度合い・頻度も渡し、重ねて尋ねないようにする。
+    return await precheckDraft({
+      title,
+      body,
+      severity: input.severity ?? null,
+      frequency: input.frequency ?? null,
+    });
   } catch {
     return { advice: null };
   }

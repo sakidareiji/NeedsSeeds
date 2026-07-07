@@ -66,6 +66,8 @@ export function PostForm({
     const res = await checkPostDraft({
       title: String(fd.get("title") ?? ""),
       body: String(fd.get("body") ?? ""),
+      severity: Number(fd.get("severity")) || null,
+      frequency: String(fd.get("frequency") ?? "") || null,
     });
     setChecking(false);
     checkedRef.current = true;
