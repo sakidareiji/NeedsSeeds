@@ -6,6 +6,7 @@ import { getAuthUser } from "@/lib/auth";
 import { PostCard } from "@/components/PostCard";
 import { LIST_SELECT, attachViewerEmpathized, type PostListItem } from "@/lib/posts/queries";
 import { GradeBadge } from "@/components/GradeBadge";
+import { SignOutButton } from "@/components/SignOutButton";
 import { nextGrade } from "@config/grades";
 
 export async function generateMetadata({
@@ -64,12 +65,15 @@ export default async function ProfilePage({
             <GradeBadge score={profile.contribution_score} />
           </div>
           {isSelf && (
-            <Link
-              href={`/u/${profile.id}/edit`}
-              className="text-sm text-brand-600 hover:underline"
-            >
-              編集
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link
+                href={`/u/${profile.id}/edit`}
+                className="text-sm text-brand-600 hover:underline"
+              >
+                編集
+              </Link>
+              <SignOutButton />
+            </div>
           )}
         </div>
         {profile.bio && (
