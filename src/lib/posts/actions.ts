@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { postInputSchema } from "@/lib/posts/schema";
 import { postHandle } from "@/lib/format";
 import { enqueueAnalysis } from "@/lib/analysis/enqueue";
+import { precheckDraft } from "@/lib/analysis/precheck";
 import { canCreatePost } from "@/lib/rate-limit";
 
 export type ActionState = { error?: string } | null;
@@ -18,6 +19,32 @@ function parse(formData: FormData) {
     severity: formData.get("severity"),
     frequency: formData.get("frequency") ?? undefined,
   });
+}
+
+/**
+ * 投稿前チェック。下書きを軽量なLLM呼び出しで確認し、より良い投稿にする
+ * ための助言が必要なら短いアドバイスを返す。AIの失敗・タイムアウトで
+ * 投稿を妨げない(エラー時はアドバイスなし扱い=そのまま投稿に進める)。
+ */
+export async function checkPostDraft(input: {
+  title: string;
+  body: string;
+}): Promise<{ advice: string | null }> {
+  const title = String(input.title ?? "").slice(0, 60);
+  const body = String(input.body ?? "").slice(0, 2000);
+  if (!title.trim() || !body.trim()) return { advice: null };
+
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { advice: null };
+
+  try {
+    return await precheckDraft({ title, body });
+  } catch {
+    return { advice: null };
+  }
 }
 
 /** F2 投稿作成。即時公開(pending状態を挟まない)。AI解析は非同期(M2で接続)。 */

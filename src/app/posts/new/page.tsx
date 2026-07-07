@@ -17,7 +17,12 @@ export default async function NewPostPage() {
       <p className="mb-6 text-sm text-neutral-500">
         投稿すると、AIが解決のヒントを探します。
       </p>
-      <PostForm action={createPost} categories={categories} submitLabel="投稿する" />
+      <PostForm
+        action={createPost}
+        categories={categories}
+        submitLabel="投稿する"
+        withPrecheck
+      />
     </div>
   );
 }
