@@ -11,6 +11,7 @@ const NAV = [
   { href: "/admin/solutions", label: "解決策マスタ" },
   { href: "/admin/categories", label: "カテゴリ" },
   { href: "/admin/import", label: "種投稿インポート" },
+  { href: "/admin/announcements", label: "お知らせ" },
 ];
 
 export default async function AdminLayout({
