@@ -14,7 +14,7 @@ function describe(n: NotificationRow): { text: string; href?: string } {
   const href = postId ? `/posts/${postId}` : undefined;
   switch (n.type) {
     case "empathy_milestone":
-      return { text: `あなたの投稿の「わかる」が ${p.count ?? ""} 件に届きました`, href };
+      return { text: `あなたの投稿の「わかる」が ${p.count ?? ""} 件、届きました`, href };
     case "solution_presented":
       return { text: "あなたの投稿に解決のヒントが提示されました", href };
     case "contribution_earned":
