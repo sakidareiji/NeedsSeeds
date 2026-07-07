@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/auth";
 import { featuredScore } from "@config/ranking";
 
 export type PostListItem = {
@@ -42,9 +43,9 @@ export async function attachViewerEmpathized(
   items: Omit<PostListItem, "viewer_empathized">[]
 ): Promise<PostListItem[]> {
   if (items.length === 0) return [];
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // cache() 済みの getAuthUser() を使い、ページ本体の認証チェックと
+  // 認証サーバーへの往復を1回に畳む。
+  const user = await getAuthUser();
   if (!user) return items.map((p) => ({ ...p, viewer_empathized: false }));
 
   const { data } = await supabase

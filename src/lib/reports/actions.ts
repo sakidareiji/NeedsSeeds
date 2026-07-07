@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { isUniqueViolation } from "@/lib/supabase/errors";
 import { REPORT_REASONS } from "@/lib/reports/reasons";
 
 const REASON_VALUES = REPORT_REASONS.map((r) => r.value) as readonly string[];
@@ -35,7 +36,7 @@ export async function reportPost(
     .from("reports")
     .insert({ post_id: postId, user_id: user.id, reason });
   // 重複通報(unique違反)は成功扱いにする。
-  if (error && !String(error.code).includes("23505")) {
+  if (error && !isUniqueViolation(error)) {
     return { ok: false, message: "通報に失敗しました" };
   }
   return { ok: true, message: "通報を受け付けました。ご協力ありがとうございます。" };

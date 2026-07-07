@@ -27,7 +27,8 @@ export function ResolutionReport({
 
   const hasSolutions = presentedSolutions.length > 0;
   // 構造化された解決策を持たない解決方法は自由記述で残す(自力は必須)。
-  const needsNote = resolvedBy === "self" || resolvedBy === "other";
+  // サーバー側(reportResolution)と同じ判定式に揃える。
+  const needsNote = resolvedBy !== "solution";
 
   function submit() {
     setError(null);

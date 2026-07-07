@@ -24,7 +24,7 @@ export default async function HomePage({
 
   return (
     <div className="space-y-6">
-      <PostedBanner show={searchParams.posted === "1"} />
+      {searchParams.posted === "1" && <PostedBanner />}
 
       {!user && (
         <section className="rounded-2xl bg-brand-50 p-6">

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { isUniqueViolation } from "@/lib/supabase/errors";
 import { createNotificationOnce } from "@/lib/notifications";
 import { awardContribution } from "@/lib/contribution";
 import { logEvent } from "@/lib/events";
@@ -219,9 +220,9 @@ export async function markHelpful(
     .from("helpful_marks")
     .insert({ post_id: postId, user_id: user.id });
   if (error) {
-    // 既に付けている(unique違反 23505)場合は成功扱いで加点しない。
+    // 既に付けている(unique違反)場合は成功扱いで加点しない。
     // それ以外の失敗は握りつぶさずエラーとして返す。
-    if (String(error.code).includes("23505")) return { ok: true };
+    if (isUniqueViolation(error)) return { ok: true };
     return { ok: false, error: "登録に失敗しました" };
   }
 

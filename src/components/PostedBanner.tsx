@@ -3,17 +3,17 @@
 import { useEffect, useState } from "react";
 
 /**
- * 投稿完了の通知バナー(ホーム画面)。`/?posted=1` で遷移してきたときに表示し、
- * URLからクエリを取り除く(再読み込みで再表示しないため)。
- * クエリ除去は history API で行い、RSC の再取得を発生させない。
+ * 投稿完了の通知バナー(ホーム画面)。`/?posted=1` のときに親が描画する。
+ * マウント時にURLからクエリを取り除く(再読み込みで再表示しないため)。
+ * クエリ除去は history API で行い、RSC の再取得を発生させない
+ * (Next.js 14.1+ は history.replaceState をルーター状態に同期する)。
  */
-export function PostedBanner({ show }: { show: boolean }) {
-  const [visible, setVisible] = useState(show);
+export function PostedBanner() {
+  const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    if (!show) return;
     window.history.replaceState(null, "", "/");
-  }, [show]);
+  }, []);
 
   if (!visible) return null;
 

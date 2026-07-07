@@ -84,18 +84,6 @@ export async function updatePost(
   } = await supabase.auth.getUser();
   if (!user) return { error: "ログインが必要です" };
 
-  // 「わかる」が一つでも付いたら編集不可(共感後の改ざん防止)。
-  const { data: current } = await supabase
-    .from("posts")
-    .select("empathy_count")
-    .eq("id", postId)
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (!current) return { error: "対象の投稿が見つかりません" };
-  if (current.empathy_count > 0) {
-    return { error: "「わかる」が付いた投稿は編集できません。" };
-  }
-
   const { data, error } = await supabase
     .from("posts")
     .update({
@@ -109,11 +97,22 @@ export async function updatePost(
     })
     .eq("id", postId)
     .eq("user_id", user.id)
-    .eq("empathy_count", 0) // レースコンディション対策(直前チェックとの間隙を防ぐ)
+    .eq("empathy_count", 0) // 「わかる」が付いた投稿は編集不可(共感後の改ざん防止)
     .select("id, title")
     .single();
 
   if (error || !data) {
+    // 失敗時のみ原因を調べ、正確なメッセージを返す(成功パスは1往復で済ませる)。
+    const { data: current } = await supabase
+      .from("posts")
+      .select("empathy_count")
+      .eq("id", postId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (!current) return { error: "対象の投稿が見つかりません" };
+    if (current.empathy_count > 0) {
+      return { error: "「わかる」が付いた投稿は編集できません。" };
+    }
     return { error: "更新に失敗しました。" };
   }
 
