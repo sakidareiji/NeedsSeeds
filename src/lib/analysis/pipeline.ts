@@ -3,7 +3,7 @@ import { analyzePost } from "@/lib/analysis/anthropic";
 import type { AnalysisOutput } from "@/lib/analysis/schema";
 import type { Json } from "@/lib/database.types";
 import { awardContribution } from "@/lib/contribution";
-import { createNotification } from "@/lib/notifications";
+import { createNotification, notifyAdmins } from "@/lib/notifications";
 import { assessmentPoints } from "@config/scoring";
 
 export type AnalysisRuleResult = {
@@ -141,6 +141,16 @@ export async function runAnalysis(postId: string): Promise<void> {
         ...(rules.hide ? { status: "hidden" } : {}),
       })
       .eq("id", post.id);
+
+    // 非公開化したら運営へ通知(F7)。再解析での重複通知を避けるため、
+    // 公開中→非公開に変わったときだけ送る。
+    if (rules.hide && post.status === "published") {
+      await notifyAdmins({
+        message: `AIモデレーションにより投稿「${post.title}」を非公開にしました。内容を確認してください。`,
+        href: "/admin/posts?status=hidden",
+        postId: post.id,
+      });
+    }
 
     // 貢献スコア付与(F3-6/F6)。モデレーションNG(誹謗中傷/個人情報/スパム)は0点。
     // 冪等(1投稿1回)なので編集による再解析で二重加点しない。

@@ -52,6 +52,30 @@ export async function createNotificationOnce(input: {
   });
 }
 
+/**
+ * 運営(role=admin)全員へ通知する(F7 モデレーション通知・F8)。
+ * payload.href に管理画面などのリンク先パスを渡せる。
+ */
+export async function notifyAdmins(payload: {
+  message: string;
+  href?: string;
+  postId?: string;
+}): Promise<void> {
+  const admin = createAdminClient();
+  const { data: admins } = await admin
+    .from("users")
+    .select("id")
+    .eq("role", "admin");
+  if (!admins || admins.length === 0) return;
+  await admin.from("notifications").insert(
+    admins.map((a) => ({
+      user_id: a.id,
+      type: "admin" as const,
+      payload: payload as unknown as Json,
+    }))
+  );
+}
+
 export type NotificationRow = {
   id: string;
   type: string;

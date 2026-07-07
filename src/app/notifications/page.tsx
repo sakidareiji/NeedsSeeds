@@ -23,8 +23,18 @@ function describe(n: NotificationRow): { text: string; href?: string } {
       return { text: `グレードが「${p.grade ?? ""}」に上がりました 🌱` };
     case "resolution_milestone":
       return { text: "解決の節目に達しました", href };
-    case "admin":
-      return { text: typeof p.message === "string" ? p.message : "運営からのお知らせ" };
+    case "admin": {
+      // 運営通知はリンク先(管理画面など)を payload.href で持てる。
+      // 同一オリジンのパスのみ許可(外部URLへの誘導を防ぐ)。
+      const adminHref =
+        typeof p.href === "string" && p.href.startsWith("/") && !p.href.startsWith("//")
+          ? p.href
+          : undefined;
+      return {
+        text: typeof p.message === "string" ? p.message : "運営からのお知らせ",
+        href: adminHref,
+      };
+    }
     default:
       return { text: "お知らせ" };
   }
