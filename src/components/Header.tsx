@@ -6,7 +6,7 @@ export async function Header({ profile }: { profile: Profile | null }) {
   const unread = profile ? await getUnreadCount() : 0;
   return (
     <header className="border-b border-neutral-200 bg-white/80 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-4 px-4 py-3">
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3">
         <Link href="/" className="flex items-center gap-2 font-bold text-brand-600">
           <span aria-hidden className="text-lg">🌱</span>
           <span>Needs Seeds</span>

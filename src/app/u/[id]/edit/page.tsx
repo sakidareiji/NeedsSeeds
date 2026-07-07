@@ -25,7 +25,7 @@ export default async function EditProfilePage({
   if (!profile) notFound();
 
   return (
-    <div>
+    <div className="mx-auto max-w-3xl">
       <h1 className="mb-6 text-2xl font-bold">プロフィールを編集</h1>
       <ProfileForm defaults={profile} />
 

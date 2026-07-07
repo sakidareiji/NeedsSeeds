@@ -16,7 +16,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function PrivacyPage() {
   return (
-    <article className="space-y-6 text-sm leading-relaxed text-neutral-700">
+    <article className="mx-auto max-w-3xl space-y-6 text-sm leading-relaxed text-neutral-700">
       <div>
         <h1 className="text-2xl font-bold text-neutral-900">プライバシーポリシー</h1>
         <p className="mt-1 text-xs text-neutral-400">最終更新日: {UPDATED}</p>
@@ -51,7 +51,7 @@ export default function PrivacyPage() {
           <li>Supabase(データベース・認証基盤): アカウント情報・投稿データの保管</li>
           <li>Vercel(ホスティング): アクセスログの処理</li>
           <li>
-            Anthropic(AI解析API): 投稿のタイトル・本文等の解析のための送信。
+            Google Gemini(AI解析API): 投稿のタイトル・本文等の解析のための送信。
             解析はサービス提供のためにのみ行われます
           </li>
           <li>Google(Google ログインを利用する場合): 認証情報の連携</li>

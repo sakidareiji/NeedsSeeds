@@ -116,9 +116,11 @@ export default async function ProfilePage({
             まだ投稿がありません。
           </p>
         ) : (
-          posts.map((p) => (
-            <PostCard key={p.id} post={p} currentUserId={authUser?.id ?? null} />
-          ))
+          <div className="grid gap-3 lg:grid-cols-2">
+            {posts.map((p) => (
+              <PostCard key={p.id} post={p} currentUserId={authUser?.id ?? null} />
+            ))}
+          </div>
         )}
       </section>
     </div>

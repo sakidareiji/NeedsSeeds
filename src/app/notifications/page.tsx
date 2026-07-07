@@ -48,7 +48,7 @@ export default async function NotificationsPage() {
   await markAllRead();
 
   return (
-    <div>
+    <div className="mx-auto max-w-3xl">
       <h1 className="mb-6 text-2xl font-bold">通知</h1>
       {notifications.length === 0 ? (
         <p className="py-8 text-center text-sm text-neutral-500">通知はまだありません。</p>

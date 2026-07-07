@@ -97,7 +97,8 @@ export default async function PostDetailPage({
     post.status === "published" && post.ai_status === "pending" && hints.length === 0;
 
   return (
-    <article className="space-y-6">
+    // 本文の読みやすさのため、広いレイアウトの中でも読み幅は保つ。
+    <article className="mx-auto max-w-3xl space-y-6">
       <div>
         <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-neutral-500">
           {post.category && (

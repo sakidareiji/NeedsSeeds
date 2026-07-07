@@ -26,8 +26,8 @@ export default async function RootLayout({
     <html lang="ja">
       <body className="bg-[var(--background)] text-[var(--foreground)] antialiased">
         <Header profile={profile} />
-        <main className="mx-auto w-full max-w-3xl px-4 py-6">{children}</main>
-        <footer className="mx-auto mt-16 w-full max-w-3xl px-4 py-8 text-sm text-neutral-500">
+        <main className="mx-auto w-full max-w-6xl px-4 py-6">{children}</main>
+        <footer className="mx-auto mt-16 w-full max-w-6xl px-4 py-8 text-sm text-neutral-500">
           <nav className="flex flex-wrap gap-4">
             <a href="/terms" className="hover:text-brand-600">
               利用規約

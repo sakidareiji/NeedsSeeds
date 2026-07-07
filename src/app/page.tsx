@@ -56,7 +56,7 @@ export default async function HomePage({
           まだ投稿がありません。最初の困りごとを投稿してみませんか?
         </p>
       ) : (
-        <div className="space-y-3">
+        <div className="grid gap-3 lg:grid-cols-2">
           {posts.map((p) => (
             <PostCard key={p.id} post={p} currentUserId={user?.id ?? null} />
           ))}

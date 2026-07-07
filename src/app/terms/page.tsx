@@ -16,7 +16,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function TermsPage() {
   return (
-    <article className="space-y-6 text-sm leading-relaxed text-neutral-700">
+    <article className="mx-auto max-w-3xl space-y-6 text-sm leading-relaxed text-neutral-700">
       <div>
         <h1 className="text-2xl font-bold text-neutral-900">利用規約</h1>
         <p className="mt-1 text-xs text-neutral-400">最終更新日: {UPDATED}</p>

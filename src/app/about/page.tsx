@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "運営者情報" };
 
 export default function AboutPage() {
   return (
-    <article className="space-y-6 text-sm leading-relaxed text-neutral-700">
+    <article className="mx-auto max-w-3xl space-y-6 text-sm leading-relaxed text-neutral-700">
       <h1 className="text-2xl font-bold text-neutral-900">運営者情報</h1>
 
       <section className="space-y-2">
