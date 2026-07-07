@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/auth";
 import { ProfileForm } from "@/components/ProfileForm";
+import { DeactivateAccountButton } from "@/components/DeactivateAccountButton";
 
 export const metadata: Metadata = { title: "プロフィールを編集" };
 
@@ -27,6 +28,14 @@ export default async function EditProfilePage({
     <div>
       <h1 className="mb-6 text-2xl font-bold">プロフィールを編集</h1>
       <ProfileForm defaults={profile} />
+
+      <div className="mt-12 border-t border-neutral-200 pt-6">
+        <h2 className="mb-1 text-sm font-medium text-neutral-500">退会</h2>
+        <p className="mb-3 text-xs text-neutral-400">
+          プロフィールは匿名化されます。投稿した困りごとは「退会したユーザー」名義で残ります。
+        </p>
+        <DeactivateAccountButton />
+      </div>
     </div>
   );
 }
