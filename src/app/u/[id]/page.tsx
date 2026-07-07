@@ -6,6 +6,7 @@ import { getAuthUser } from "@/lib/auth";
 import { PostCard } from "@/components/PostCard";
 import { LIST_SELECT, attachViewerEmpathized, type PostListItem } from "@/lib/posts/queries";
 import { GradeBadge } from "@/components/GradeBadge";
+import { CompanyBadge } from "@/components/CompanyBadge";
 import { SignOutButton } from "@/components/SignOutButton";
 import { nextGrade } from "@config/grades";
 
@@ -31,13 +32,16 @@ export default async function ProfilePage({
   const supabase = createClient();
   const { data: profile } = await supabase
     .from("users")
-    .select("id, display_name, bio, contribution_score")
+    .select("id, display_name, bio, contribution_score, role")
     .eq("id", params.id)
     .maybeSingle();
   if (!profile) notFound();
 
   const authUser = await getAuthUser();
   const isSelf = authUser?.id === profile.id;
+  // 運営(admin)の投稿はユーザー画面に出さない。本人が自分のページを
+  // 見る場合のみ表示する(一覧側の除外と対になるプロフィール側の措置)。
+  const hideOpsPosts = profile.role === "admin" && !isSelf;
 
   // Own posts include hidden ones; others see only published (RLS enforces this).
   const { data: postsData } = await supabase
@@ -62,6 +66,7 @@ export default async function ProfilePage({
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold">{profile.display_name}</h1>
+            {profile.role === "company" && <CompanyBadge />}
             <GradeBadge score={profile.contribution_score} />
           </div>
           {isSelf && (
@@ -111,7 +116,7 @@ export default async function ProfilePage({
         <h2 className="text-lg font-bold">
           {isSelf ? "あなたの投稿" : "投稿"}
         </h2>
-        {posts.length === 0 ? (
+        {hideOpsPosts || posts.length === 0 ? (
           <p className="py-8 text-center text-sm text-neutral-500">
             まだ投稿がありません。
           </p>

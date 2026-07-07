@@ -12,7 +12,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-export type UserRole = "user" | "admin" | "seed";
+export type UserRole = "user" | "admin" | "seed" | "company";
 export type PostStatus = "published" | "hidden" | "deleted";
 export type AiStatus = "pending" | "done" | "failed";
 export type ResolvedBy = "solution" | "self" | "other";

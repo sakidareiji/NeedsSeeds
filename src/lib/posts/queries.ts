@@ -15,7 +15,12 @@ export type PostListItem = {
   resolved_at: string | null;
   created_at: string;
   category: { id: number; slug: string; name: string } | null;
-  author: { id: string; display_name: string; contribution_score: number } | null;
+  author: {
+    id: string;
+    display_name: string;
+    contribution_score: number;
+    role: string;
+  } | null;
   /** 閲覧者自身がこの投稿に「わかる」を付けているか(未ログイン時は false)。 */
   viewer_empathized: boolean;
 };
@@ -30,9 +35,17 @@ export type PostDetail = PostListItem & {
 };
 
 export const LIST_SELECT =
-  "id, title, body, severity, frequency, empathy_count, quality_score, status, resolved_at, created_at, category:categories(id, slug, name), author:users(id, display_name, contribution_score)";
+  "id, title, body, severity, frequency, empathy_count, quality_score, status, resolved_at, created_at, category:categories(id, slug, name), author:users(id, display_name, contribution_score, role)";
 
 export type SortMode = "featured" | "new";
+
+/** 一覧の投稿者絞り込み: すべて / 企業のみ / 個人のみ(企業以外)。 */
+export type AuthorFilter = "all" | "company" | "personal";
+
+/** URLクエリ(?from=)の値を AuthorFilter に正規化する。 */
+export function parseAuthorFilter(v: string | undefined): AuthorFilter {
+  return v === "company" || v === "personal" ? v : "all";
+}
 
 /**
  * 一覧の各投稿に、閲覧者自身の「わかる」状態を付与する(未ログイン時は全て false)。
@@ -65,6 +78,8 @@ export async function listPosts(opts: {
   categorySlug?: string;
   sort?: SortMode;
   limit?: number;
+  /** 投稿者の絞り込み(既定: all)。企業=role 'company'、個人=それ以外。 */
+  authorFilter?: AuthorFilter;
 }): Promise<PostListItem[]> {
   const supabase = createClient();
   const limit = opts.limit ?? 30;
@@ -92,7 +107,16 @@ export async function listPosts(opts: {
     .order("created_at", { ascending: false })
     .limit(opts.sort === "new" ? limit : Math.max(limit, 100));
 
-  const rows = (data ?? []) as unknown as Omit<PostListItem, "viewer_empathized">[];
+  const fetched = (data ?? []) as unknown as Omit<PostListItem, "viewer_empathized">[];
+
+  // 運営(admin)アカウントの投稿はユーザー向け一覧に出さない(運用・テスト投稿の混入防止)。
+  // 種投稿(seed)はコールドスタート用コンテンツなので表示する。
+  const rows = fetched.filter((p) => {
+    if (p.author?.role === "admin") return false;
+    if (opts.authorFilter === "company") return p.author?.role === "company";
+    if (opts.authorFilter === "personal") return p.author?.role !== "company";
+    return true;
+  });
 
   const final =
     opts.sort === "new"
@@ -127,7 +151,7 @@ export const getPostById = cache(
     const { data } = await supabase
       .from("posts")
       .select(
-        "id, user_id, category_id, title, body, severity, frequency, empathy_count, quality_score, status, ai_status, resolved_at, resolved_by, resolution_note, created_at, updated_at, category:categories(id, slug, name), author:users(id, display_name, contribution_score)"
+        "id, user_id, category_id, title, body, severity, frequency, empathy_count, quality_score, status, ai_status, resolved_at, resolved_by, resolution_note, created_at, updated_at, category:categories(id, slug, name), author:users(id, display_name, contribution_score, role)"
       )
       .eq("id", id)
       .maybeSingle();

@@ -21,6 +21,7 @@ import { EmpathyButton } from "@/components/EmpathyButton";
 import { ResolutionReport } from "@/components/ResolutionReport";
 import { HelpfulButton } from "@/components/HelpfulButton";
 import { GradeBadge } from "@/components/GradeBadge";
+import { CompanyBadge } from "@/components/CompanyBadge";
 import { ReportButton } from "@/components/ReportButton";
 
 export async function generateMetadata({
@@ -128,6 +129,7 @@ export default async function PostDetailPage({
               <Link href={`/u/${post.author.id}`} className="hover:text-brand-600">
                 {post.author.display_name}
               </Link>
+              {post.author.role === "company" && <CompanyBadge />}
               <GradeBadge score={post.author.contribution_score} />
             </span>
           )}

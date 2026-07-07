@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { PostListItem } from "@/lib/posts/queries";
 import { postHandle, timeAgo } from "@/lib/format";
 import { GradeBadge } from "@/components/GradeBadge";
+import { CompanyBadge } from "@/components/CompanyBadge";
 import { EmpathyButton } from "@/components/EmpathyButton";
 
 /**
@@ -50,6 +51,7 @@ export function PostCard({
 
       <div className="relative z-10 mt-2 flex flex-wrap items-center gap-2 text-xs text-neutral-500">
         <span>{post.author?.display_name ?? "退会したユーザー"}</span>
+        {post.author?.role === "company" && <CompanyBadge />}
         {post.author && <GradeBadge score={post.author.contribution_score} />}
         <EmpathyButton
           postId={post.id}
