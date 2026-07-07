@@ -165,11 +165,7 @@ export default async function PostDetailPage({
 
       {/* 追記促し(F3-7): 品質が低めの投稿に運営AIからの問いかけ */}
       {followUp && (
-        <FollowUpComment
-          question={followUp}
-          canEdit={isOwner}
-          editHref={`/posts/${handle}/edit`}
-        />
+        <FollowUpComment question={followUp} canRespond={isOwner} postId={post.id} />
       )}
 
       <div className="flex flex-wrap items-center gap-3 border-t border-neutral-200 pt-4 text-sm text-neutral-500">
