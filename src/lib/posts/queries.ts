@@ -73,16 +73,21 @@ export async function attachViewerEmpathized(
   return items.map((p) => ({ ...p, viewer_empathized: empathized.has(p.id) }));
 }
 
+export type PostListPage = { items: PostListItem[]; hasMore: boolean };
+
 /** Fetch published posts for a list view, optionally filtered by category. */
 export async function listPosts(opts: {
   categorySlug?: string;
   sort?: SortMode;
   limit?: number;
+  /** 1始まりのページ番号(既定: 1)。 */
+  page?: number;
   /** 投稿者の絞り込み(既定: all)。運営(admin)閲覧時のみ使う想定。 */
   authorFilter?: AuthorFilter;
-}): Promise<PostListItem[]> {
+}): Promise<PostListPage> {
   const supabase = createClient();
   const limit = opts.limit ?? 30;
+  const page = Math.max(1, opts.page ?? 1);
 
   let query = supabase
     .from("posts")
@@ -95,17 +100,20 @@ export async function listPosts(opts: {
       .select("id")
       .eq("slug", opts.categorySlug)
       .single();
-    if (!cat) return [];
+    if (!cat) return { items: [], hasMore: false };
     query = query.eq("category_id", cat.id);
   }
 
   // Over-fetch a window, then sort. 注目順(F11)は quality_score / empathy を
   // 加味するため、新着で広めに取得してからアプリ側で加重ソートする。
-  // NOTE(M2): 窓が新着100件固定のため、それより古い高共感投稿はランク外に
-  // 落ちる。投稿数が増えたらスコアを DB 側にマテリアライズして order by する。
+  // ページングも窓の中で行う(admin除外がアプリ側フィルタのため、DBの
+  // range() では正確なページ境界を切れない)。
+  // NOTE(M2): それより古い高共感投稿はランク外に落ちる。投稿数が増えたら
+  // スコアを DB 側にマテリアライズして order by / range する。
+  const windowSize = Math.max(100, page * limit + 1);
   const { data } = await query
     .order("created_at", { ascending: false })
-    .limit(opts.sort === "new" ? limit : Math.max(limit, 100));
+    .limit(windowSize);
 
   const fetched = (data ?? []) as unknown as Omit<PostListItem, "viewer_empathized">[];
 
@@ -118,9 +126,9 @@ export async function listPosts(opts: {
     return true;
   });
 
-  const final =
+  const sorted =
     opts.sort === "new"
-      ? rows.slice(0, limit)
+      ? rows
       : (() => {
           const now = new Date();
           return rows
@@ -134,11 +142,16 @@ export async function listPosts(opts: {
               }),
             }))
             .sort((a, b) => b.score - a.score)
-            .slice(0, limit)
             .map(({ p }) => p);
         })();
 
-  return attachViewerEmpathized(supabase, final);
+  const pageItems = sorted.slice((page - 1) * limit, page * limit);
+  const hasMore = sorted.length > page * limit;
+
+  return {
+    items: await attachViewerEmpathized(supabase, pageItems),
+    hasMore,
+  };
 }
 
 /**

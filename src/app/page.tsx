@@ -2,10 +2,10 @@ import Link from "next/link";
 import { listPosts, parseAuthorFilter, type SortMode } from "@/lib/posts/queries";
 import { getActiveCategories } from "@/lib/categories";
 import { getCurrentProfile } from "@/lib/auth";
-import { PostCard } from "@/components/PostCard";
 import { CategoryTabs } from "@/components/CategoryTabs";
 import { SortTabs } from "@/components/SortTabs";
 import { AuthorFilterTabs } from "@/components/AuthorFilterTabs";
+import { PostList } from "@/components/PostList";
 import { PostedBanner } from "@/components/PostedBanner";
 
 // 常に最新の投稿を反映(即時公開)。
@@ -14,15 +14,16 @@ export const dynamic = "force-dynamic";
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: { sort?: string; posted?: string; from?: string };
+  searchParams: { sort?: string; posted?: string; from?: string; page?: string };
 }) {
   const sort: SortMode = searchParams.sort === "new" ? "new" : "featured";
+  const page = Math.max(1, Number(searchParams.page) || 1);
   // 投稿者絞り込みは運営(admin)だけが使える(一般ユーザーにはタブも出さない)。
   const profile = await getCurrentProfile();
   const isAdmin = profile?.role === "admin";
   const from = isAdmin ? parseAuthorFilter(searchParams.from) : "all";
-  const [posts, categories] = await Promise.all([
-    listPosts({ sort, authorFilter: from }),
+  const [{ items: posts, hasMore }, categories] = await Promise.all([
+    listPosts({ sort, authorFilter: from, page }),
     getActiveCategories(),
   ]);
   const user = profile;
@@ -64,17 +65,16 @@ export default async function HomePage({
         </div>
       </div>
 
-      {posts.length === 0 ? (
-        <p className="py-12 text-center text-sm text-neutral-500">
-          まだ投稿がありません。最初の困りごとを投稿してみませんか?
-        </p>
-      ) : (
-        <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
-          {posts.map((p) => (
-            <PostCard key={p.id} post={p} currentUserId={user?.id ?? null} />
-          ))}
-        </div>
-      )}
+      <PostList
+        posts={posts}
+        hasMore={hasMore}
+        page={page}
+        basePath="/"
+        sort={sort}
+        from={from}
+        currentUserId={user?.id ?? null}
+        emptyMessage="まだ投稿がありません。最初の困りごとを投稿してみませんか?"
+      />
     </div>
   );
 }
