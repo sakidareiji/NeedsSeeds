@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const NAV = [
   { href: "/admin", label: "KPI" },
+  { href: "/admin/top", label: "トップ画面" },
   { href: "/admin/posts", label: "投稿" },
   { href: "/admin/reports", label: "通報キュー" },
   { href: "/admin/analysis", label: "解析失敗" },

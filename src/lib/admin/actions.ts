@@ -20,6 +20,7 @@ export async function setPostStatus(
   const admin = createAdminClient();
   await admin.from("posts").update({ status }).eq("id", postId);
   revalidatePath("/admin/posts");
+  revalidatePath("/admin/top");
   revalidatePath("/");
 }
 
