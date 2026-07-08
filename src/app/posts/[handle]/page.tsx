@@ -16,6 +16,7 @@ import {
 import type { Frequency } from "@/lib/database.types";
 import { DeletePostButton } from "@/components/DeletePostButton";
 import { SolutionHints } from "@/components/SolutionHints";
+import { AnalyzingHints } from "@/components/AnalyzingHints";
 import { FollowUpComment } from "@/components/FollowUpComment";
 import { EmpathyButton } from "@/components/EmpathyButton";
 import { ResolutionReport } from "@/components/ResolutionReport";
@@ -160,11 +161,7 @@ export default async function PostDetailPage({
           NG投稿には何も出さない(パイプライン側で post_solutions を作らない)。 */}
       <SolutionHints hints={hints} />
 
-      {showAnalyzing && (
-        <p className="rounded-xl border border-dashed border-neutral-200 p-4 text-sm text-neutral-400">
-          AIが解決のヒントを探しています。少し待って再読み込みしてください。
-        </p>
-      )}
+      {showAnalyzing && <AnalyzingHints />}
 
       {/* 追記促し(F3-7): 品質が低めの投稿に運営AIからの問いかけ */}
       {followUp && (
