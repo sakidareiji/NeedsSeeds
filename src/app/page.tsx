@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { listPosts, type SortMode } from "@/lib/posts/queries";
+import { listPosts, parseAuthorFilter, type SortMode } from "@/lib/posts/queries";
 import { getActiveCategories } from "@/lib/categories";
-import { getAuthUser } from "@/lib/auth";
+import { getCurrentProfile } from "@/lib/auth";
 import { PostCard } from "@/components/PostCard";
 import { CategoryTabs } from "@/components/CategoryTabs";
 import { SortTabs } from "@/components/SortTabs";
+import { AuthorFilterTabs } from "@/components/AuthorFilterTabs";
 import { PostedBanner } from "@/components/PostedBanner";
 
 // 常に最新の投稿を反映(即時公開)。
@@ -13,14 +14,18 @@ export const dynamic = "force-dynamic";
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: { sort?: string; posted?: string };
+  searchParams: { sort?: string; posted?: string; from?: string };
 }) {
   const sort: SortMode = searchParams.sort === "new" ? "new" : "featured";
-  const [posts, categories, user] = await Promise.all([
-    listPosts({ sort }),
+  // 投稿者絞り込みは運営(admin)だけが使える(一般ユーザーにはタブも出さない)。
+  const profile = await getCurrentProfile();
+  const isAdmin = profile?.role === "admin";
+  const from = isAdmin ? parseAuthorFilter(searchParams.from) : "all";
+  const [posts, categories] = await Promise.all([
+    listPosts({ sort, authorFilter: from }),
     getActiveCategories(),
-    getAuthUser(),
   ]);
+  const user = profile;
 
   return (
     <div className="space-y-6">
@@ -46,9 +51,17 @@ export default async function HomePage({
 
       <CategoryTabs categories={categories} />
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-bold">みんなの困りごと</h2>
-        <SortTabs basePath="/" sort={sort} />
+        <div className="flex items-center gap-4">
+          {isAdmin && (
+            <>
+              <AuthorFilterTabs basePath="/" sort={sort} from={from} />
+              <span aria-hidden className="h-4 w-px bg-neutral-200" />
+            </>
+          )}
+          <SortTabs basePath="/" sort={sort} from={from} />
+        </div>
       </div>
 
       {posts.length === 0 ? (

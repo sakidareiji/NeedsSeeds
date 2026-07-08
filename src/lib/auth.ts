@@ -17,17 +17,18 @@ export const getAuthUser = cache(async () => {
   return user;
 });
 
-/** The current user's public profile row, or null if not signed in. */
-export async function getCurrentProfile(): Promise<Profile | null> {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+/**
+ * The current user's public profile row, or null if not signed in.
+ * cache() dedupes within a request (layout の Header とページ本体の両方から呼ばれる)。
+ */
+export const getCurrentProfile = cache(async (): Promise<Profile | null> => {
+  const user = await getAuthUser();
   if (!user) return null;
+  const supabase = createClient();
   const { data } = await supabase
     .from("users")
     .select("*")
     .eq("id", user.id)
     .single();
   return data;
-}
+});
