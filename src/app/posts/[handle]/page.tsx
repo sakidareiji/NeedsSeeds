@@ -10,12 +10,12 @@ import {
   idFromHandle,
   postHandle,
   timeAgo,
-  SEVERITY_LABELS,
   FREQUENCY_LABELS,
 } from "@/lib/format";
 import type { Frequency } from "@/lib/database.types";
 import { DeletePostButton } from "@/components/DeletePostButton";
 import { SolutionHints } from "@/components/SolutionHints";
+import { SeverityBadge } from "@/components/SeverityBadge";
 import { AnalyzingHints } from "@/components/AnalyzingHints";
 import { FollowUpComment } from "@/components/FollowUpComment";
 import { EmpathyButton } from "@/components/EmpathyButton";
@@ -136,7 +136,9 @@ export default async function PostDetailPage({
               <GradeBadge score={post.author.contribution_score} />
             </span>
           )}
-          <span>困る度合い: {SEVERITY_LABELS[post.severity]}</span>
+          <span className="flex items-center gap-1">
+            困り度: <SeverityBadge severity={post.severity} />
+          </span>
           {post.frequency && (
             <span>頻度: {FREQUENCY_LABELS[post.frequency as Frequency]}</span>
           )}

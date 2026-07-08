@@ -3,6 +3,7 @@ import type { PostListItem } from "@/lib/posts/queries";
 import { postHandle, timeAgo } from "@/lib/format";
 import { GradeBadge } from "@/components/GradeBadge";
 import { CompanyBadge } from "@/components/CompanyBadge";
+import { SeverityBadge } from "@/components/SeverityBadge";
 import { Avatar } from "@/components/Avatar";
 import { EmpathyButton } from "@/components/EmpathyButton";
 
@@ -40,21 +41,9 @@ export function PostCard({
           </span>
         )}
         <span>{timeAgo(post.created_at)}</span>
-        {/* 困る度合いのドット表示(1〜5) */}
-        <span
-          className="ml-auto flex items-center gap-1"
-          role="img"
-          aria-label={`困る度合い ${post.severity}/5`}
-          title={`困る度合い ${post.severity}/5`}
-        >
-          {[1, 2, 3, 4, 5].map((i) => (
-            <span
-              key={i}
-              className={`h-1.5 w-1.5 rounded-full ${
-                i <= post.severity ? "bg-brand-400" : "bg-neutral-200"
-              }`}
-            />
-          ))}
+        {/* 困り度(1〜5)。色の濃さ+ラベルで一目で伝える */}
+        <span className="ml-auto">
+          <SeverityBadge severity={post.severity} />
         </span>
       </div>
 
