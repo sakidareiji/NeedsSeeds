@@ -17,26 +17,20 @@ const STATUS_LABEL: Record<string, string> = {
 export default async function AdminPostsPage({
   searchParams,
 }: {
-  searchParams: { q?: string; status?: string; author?: string };
+  searchParams: { q?: string; status?: string };
 }) {
   await requireAdmin();
   const admin = createAdminClient();
   const q = searchParams.q?.trim();
   const status = searchParams.status;
-  const authorType = searchParams.author ?? "all";
 
-  // 投稿者種別で絞る場合は inner join にして users 側の条件で行を落とす。
-  const authorJoin = authorType !== "all" ? "author:users!inner(display_name, role)" : "author:users(display_name, role)";
   let query = admin
     .from("posts")
-    .select(`id, title, status, ai_status, created_at, ${authorJoin}`)
+    .select("id, title, status, ai_status, created_at, author:users(display_name, role)")
     .order("created_at", { ascending: false })
     .limit(100);
   if (q) query = query.ilike("title", `%${q}%`);
   if (status && status !== "all") query = query.eq("status", status as PostStatus);
-  if (authorType === "company") query = query.eq("author.role", "company");
-  // 個人 = 一般ユーザー+種投稿アカウント(運営・企業を除く)
-  if (authorType === "personal") query = query.in("author.role", ["user", "seed"]);
 
   const { data } = await query;
   const posts = (data ?? []) as unknown as {
@@ -68,15 +62,6 @@ export default async function AdminPostsPage({
           <option value="published">公開</option>
           <option value="hidden">非公開</option>
           <option value="deleted">削除</option>
-        </select>
-        <select
-          name="author"
-          defaultValue={authorType}
-          className="rounded-lg border border-neutral-300 px-3 py-1.5"
-        >
-          <option value="all">すべての投稿者</option>
-          <option value="company">企業</option>
-          <option value="personal">個人</option>
         </select>
         <button className="rounded-lg bg-neutral-700 px-4 py-1.5 text-white">検索</button>
       </form>

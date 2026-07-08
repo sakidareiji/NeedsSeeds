@@ -39,14 +39,6 @@ export const LIST_SELECT =
 
 export type SortMode = "featured" | "new";
 
-/** 一覧の投稿者絞り込み: すべて / 企業のみ / 個人のみ(企業以外)。運営向けUI。 */
-export type AuthorFilter = "all" | "company" | "personal";
-
-/** URLクエリ(?from=)の値を AuthorFilter に正規化する。 */
-export function parseAuthorFilter(v: string | undefined): AuthorFilter {
-  return v === "company" || v === "personal" ? v : "all";
-}
-
 /**
  * 一覧の各投稿に、閲覧者自身の「わかる」状態を付与する(未ログイン時は全て false)。
  * listPosts() と、独自にクエリを組む画面(プロフィール等)の両方から呼ぶ。
@@ -82,8 +74,6 @@ export async function listPosts(opts: {
   limit?: number;
   /** 1始まりのページ番号(既定: 1)。 */
   page?: number;
-  /** 投稿者の絞り込み(既定: all)。運営(admin)閲覧時のみ使う想定。 */
-  authorFilter?: AuthorFilter;
   /** キーワード検索(タイトル・本文の部分一致)。 */
   searchQuery?: string;
 }): Promise<PostListPage> {
@@ -133,12 +123,7 @@ export async function listPosts(opts: {
 
   // 運営(admin)アカウントの投稿はユーザー向け一覧に出さない(運用・テスト投稿の混入防止)。
   // 種投稿(seed)はコールドスタート用コンテンツなので表示する。
-  const rows = fetched.filter((p) => {
-    if (p.author?.role === "admin") return false;
-    if (opts.authorFilter === "company") return p.author?.role === "company";
-    if (opts.authorFilter === "personal") return p.author?.role !== "company";
-    return true;
-  });
+  const rows = fetched.filter((p) => p.author?.role !== "admin");
 
   const sorted =
     opts.sort === "new"

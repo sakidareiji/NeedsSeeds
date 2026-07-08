@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PostCard } from "@/components/PostCard";
-import type { AuthorFilter, PostListItem, SortMode } from "@/lib/posts/queries";
+import type { PostListItem, SortMode } from "@/lib/posts/queries";
 
 /** 未ログイン時に一覧で見せる件数。それ以降は登録CTAを出す。 */
 const PREVIEW_LIMIT = 6;
@@ -15,7 +15,6 @@ export function PostList({
   page,
   basePath,
   sort,
-  from = "all",
   currentUserId,
   emptyMessage,
   extraParams,
@@ -25,7 +24,6 @@ export function PostList({
   page: number;
   basePath: string;
   sort: SortMode;
-  from?: AuthorFilter;
   currentUserId: string | null;
   emptyMessage: string;
   /** ページ送りリンクに引き継ぐ追加のクエリ(検索の q など)。 */
@@ -42,7 +40,6 @@ export function PostList({
   const pageHref = (p: number) => {
     const params = new URLSearchParams(extraParams);
     if (sort === "new") params.set("sort", "new");
-    if (from !== "all") params.set("from", from);
     if (p > 1) params.set("page", String(p));
     const qs = params.toString();
     return qs ? `${basePath}?${qs}` : basePath;

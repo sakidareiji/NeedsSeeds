@@ -72,7 +72,7 @@ npm run dev            # http://localhost:3000
 - 機能: 投稿一覧/検索/公開状態変更・通報キュー・解析失敗キュー(再解析)・解決策マスタCRUD・カテゴリCRUD・KPI簡易表示・**種投稿の CSV/JSON 一括インポート**。
 - 最初の管理者は手動で付与する(ローカル): `supabase start` 後に SQL で `update public.users set role='admin' where id='<自分のauth uid>';`(Studio か psql で実行)。
 - **運営(admin)アカウントの投稿はユーザー向け一覧・プロフィールに表示されない**(運用・テスト投稿の混入防止。種投稿=seed は表示される)。
-- **企業アカウント**: `update public.users set role='company' where id='<uid>';` で指定。投稿・プロフィールに「企業」バッジが付く。
+- **企業アカウント**(将来用): `update public.users set role='company' where id='<uid>';` で指定すると投稿・プロフィールに「企業」バッジが付く。企業からの投稿はまだ正式な仕様ではなく、一覧の絞り込み等は未実装。
 - 種投稿インポート: 管理画面でシードアカウント(role=seed)を作成 → CSV/JSON を貼り付けて割り当て。CSV ヘッダは `title,body,category,severity,frequency`(category はカテゴリ slug)。
 
 ### Google OAuth(任意)

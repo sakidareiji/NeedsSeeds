@@ -1,10 +1,9 @@
 import Link from "next/link";
-import { listPosts, parseAuthorFilter, type SortMode } from "@/lib/posts/queries";
+import { listPosts, type SortMode } from "@/lib/posts/queries";
 import { getActiveCategories } from "@/lib/categories";
-import { getCurrentProfile } from "@/lib/auth";
+import { getAuthUser } from "@/lib/auth";
 import { CategoryTabs } from "@/components/CategoryTabs";
 import { SortTabs } from "@/components/SortTabs";
-import { AuthorFilterTabs } from "@/components/AuthorFilterTabs";
 import { PostList } from "@/components/PostList";
 import { PostedBanner } from "@/components/PostedBanner";
 
@@ -14,19 +13,15 @@ export const dynamic = "force-dynamic";
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: { sort?: string; posted?: string; from?: string; page?: string };
+  searchParams: { sort?: string; posted?: string; page?: string };
 }) {
   const sort: SortMode = searchParams.sort === "new" ? "new" : "featured";
   const page = Math.max(1, Number(searchParams.page) || 1);
-  // 投稿者絞り込みは運営(admin)だけが使える(一般ユーザーにはタブも出さない)。
-  const profile = await getCurrentProfile();
-  const isAdmin = profile?.role === "admin";
-  const from = isAdmin ? parseAuthorFilter(searchParams.from) : "all";
-  const [{ items: posts, hasMore }, categories] = await Promise.all([
-    listPosts({ sort, authorFilter: from, page }),
+  const [{ items: posts, hasMore }, categories, user] = await Promise.all([
+    listPosts({ sort, page }),
     getActiveCategories(),
+    getAuthUser(),
   ]);
-  const user = profile;
 
   return (
     <div className="space-y-6">
@@ -62,17 +57,9 @@ export default async function HomePage({
 
       <CategoryTabs categories={categories} />
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold">みんなの困りごと</h2>
-        <div className="flex items-center gap-4">
-          {isAdmin && (
-            <>
-              <AuthorFilterTabs basePath="/" sort={sort} from={from} />
-              <span aria-hidden className="h-4 w-px bg-neutral-200" />
-            </>
-          )}
-          <SortTabs basePath="/" sort={sort} from={from} />
-        </div>
+        <SortTabs basePath="/" sort={sort} />
       </div>
 
       <PostList
@@ -81,7 +68,6 @@ export default async function HomePage({
         page={page}
         basePath="/"
         sort={sort}
-        from={from}
         currentUserId={user?.id ?? null}
         emptyMessage="まだ投稿がありません。最初の困りごとを投稿してみませんか?"
       />
