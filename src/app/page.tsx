@@ -18,7 +18,8 @@ export default async function HomePage({
 }) {
   // 運営(admin)はトップを開くとそのまま運営画面へ(?preview=1 でユーザー向け表示)。
   const profile = await getCurrentProfile();
-  if (profile?.role === "admin" && searchParams.preview !== "1") {
+  const isAdminPreview = profile?.role === "admin" && searchParams.preview === "1";
+  if (profile?.role === "admin" && !isAdminPreview) {
     redirect("/admin/top");
   }
   const user = profile;
@@ -32,6 +33,15 @@ export default async function HomePage({
 
   return (
     <div className="space-y-6">
+      {isAdminPreview && (
+        <div className="flex items-center justify-between rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-2.5 text-sm text-neutral-600">
+          <span>ユーザー向け画面をプレビュー中です</span>
+          <Link href="/admin/top" className="font-medium text-brand-700 hover:underline">
+            運営画面に戻る
+          </Link>
+        </div>
+      )}
+
       {searchParams.posted === "1" && <PostedBanner />}
 
       {!user && (
