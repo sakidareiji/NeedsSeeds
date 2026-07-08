@@ -33,20 +33,30 @@ export default async function HomePage({
       {searchParams.posted === "1" && <PostedBanner />}
 
       {!user && (
-        <section className="rounded-2xl bg-brand-50 p-6">
-          <h1 className="text-xl font-bold text-brand-800">
-            困りごとが解決に向かう場所
-          </h1>
-          <p className="mt-2 text-sm text-brand-900/70">
-            日々の「困った」を投稿すると、AIが解決のヒントを探します。
-            共感が集まり、あなたの声が次の誰かの助けになります。
-          </p>
-          <Link
-            href="/signup"
-            className="mt-4 inline-block rounded-full bg-brand-500 px-5 py-2 text-sm font-medium text-white hover:bg-brand-600"
-          >
-            はじめる
-          </Link>
+        <section className="flex items-center justify-between gap-6 rounded-2xl bg-gradient-to-br from-brand-50 to-brand-100 p-8">
+          <div>
+            <h1 className="text-2xl font-bold text-brand-800">
+              困りごとが解決に向かう場所
+            </h1>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-brand-900/70">
+              日々の「困った」を投稿すると、AIが解決のヒントを探します。
+              共感が集まり、あなたの声が次の誰かの助けになります。
+            </p>
+            <div className="mt-5 flex items-center gap-4">
+              <Link
+                href="/signup"
+                className="inline-block rounded-full bg-brand-500 px-6 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-brand-600"
+              >
+                無料ではじめる
+              </Link>
+              <Link href="/login" className="text-sm text-brand-700 hover:underline">
+                ログイン
+              </Link>
+            </div>
+          </div>
+          <span aria-hidden className="hidden select-none text-7xl sm:block">
+            🌱
+          </span>
         </section>
       )}
 

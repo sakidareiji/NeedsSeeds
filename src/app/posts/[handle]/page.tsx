@@ -23,6 +23,7 @@ import { ResolutionReport } from "@/components/ResolutionReport";
 import { HelpfulButton } from "@/components/HelpfulButton";
 import { GradeBadge } from "@/components/GradeBadge";
 import { CompanyBadge } from "@/components/CompanyBadge";
+import { Avatar } from "@/components/Avatar";
 import { ReportButton } from "@/components/ReportButton";
 
 export async function generateMetadata({
@@ -127,6 +128,7 @@ export default async function PostDetailPage({
         <div className="mt-2 flex items-center gap-3 text-sm text-neutral-500">
           {post.author && (
             <span className="flex items-center gap-1.5">
+              <Avatar name={post.author.display_name} userId={post.author.id} size="md" />
               <Link href={`/u/${post.author.id}`} className="hover:text-brand-600">
                 {post.author.display_name}
               </Link>

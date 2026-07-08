@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Profile } from "@/lib/auth";
+import { Avatar } from "@/components/Avatar";
 import { getUnreadCount } from "@/lib/notifications";
 
 export async function Header({ profile }: { profile: Profile | null }) {
@@ -82,9 +83,10 @@ export async function Header({ profile }: { profile: Profile | null }) {
               </Link>
               <Link
                 href={`/u/${profile.id}`}
-                className="text-neutral-700 hover:text-brand-600"
+                className="flex items-center gap-1.5 text-neutral-700 hover:text-brand-600"
               >
-                {profile.display_name}
+                <Avatar name={profile.display_name} userId={profile.id} size="sm" />
+                <span className="hidden sm:inline">{profile.display_name}</span>
               </Link>
               {profile.role === "admin" && (
                 <Link href="/admin" className="text-neutral-500 hover:text-brand-600">

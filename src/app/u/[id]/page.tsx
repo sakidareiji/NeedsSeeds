@@ -7,6 +7,7 @@ import { PostCard } from "@/components/PostCard";
 import { LIST_SELECT, attachViewerEmpathized, type PostListItem } from "@/lib/posts/queries";
 import { GradeBadge } from "@/components/GradeBadge";
 import { CompanyBadge } from "@/components/CompanyBadge";
+import { Avatar } from "@/components/Avatar";
 import { SignOutButton } from "@/components/SignOutButton";
 import { nextGrade } from "@config/grades";
 
@@ -64,10 +65,13 @@ export default async function ProfilePage({
     <div className="space-y-6">
       <section className="rounded-2xl border border-neutral-200 bg-white p-6">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold">{profile.display_name}</h1>
-            {profile.role === "company" && <CompanyBadge />}
-            <GradeBadge score={profile.contribution_score} />
+          <div className="flex items-center gap-3">
+            <Avatar name={profile.display_name} userId={profile.id} size="lg" />
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-bold">{profile.display_name}</h1>
+              {profile.role === "company" && <CompanyBadge />}
+              <GradeBadge score={profile.contribution_score} />
+            </div>
           </div>
           {isSelf && (
             <div className="flex items-center gap-4">

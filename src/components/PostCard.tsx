@@ -3,6 +3,7 @@ import type { PostListItem } from "@/lib/posts/queries";
 import { postHandle, timeAgo } from "@/lib/format";
 import { GradeBadge } from "@/components/GradeBadge";
 import { CompanyBadge } from "@/components/CompanyBadge";
+import { Avatar } from "@/components/Avatar";
 import { EmpathyButton } from "@/components/EmpathyButton";
 
 /**
@@ -39,6 +40,22 @@ export function PostCard({
           </span>
         )}
         <span>{timeAgo(post.created_at)}</span>
+        {/* 困る度合いのドット表示(1〜5) */}
+        <span
+          className="ml-auto flex items-center gap-1"
+          role="img"
+          aria-label={`困る度合い ${post.severity}/5`}
+          title={`困る度合い ${post.severity}/5`}
+        >
+          {[1, 2, 3, 4, 5].map((i) => (
+            <span
+              key={i}
+              className={`h-1.5 w-1.5 rounded-full ${
+                i <= post.severity ? "bg-brand-400" : "bg-neutral-200"
+              }`}
+            />
+          ))}
+        </span>
       </div>
 
       <h2 className="font-semibold leading-snug">
@@ -50,6 +67,11 @@ export function PostCard({
       <p className="mt-1 line-clamp-2 text-sm text-neutral-600">{post.body}</p>
 
       <div className="relative z-10 mt-2 flex flex-wrap items-center gap-2 text-xs text-neutral-500">
+        <Avatar
+          name={post.author?.display_name ?? "退会したユーザー"}
+          userId={post.author?.id ?? null}
+          size="sm"
+        />
         <span>{post.author?.display_name ?? "退会したユーザー"}</span>
         {post.author?.role === "company" && <CompanyBadge />}
         {post.author && <GradeBadge score={post.author.contribution_score} />}
