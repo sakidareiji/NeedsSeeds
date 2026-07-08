@@ -11,7 +11,40 @@ export async function Header({ profile }: { profile: Profile | null }) {
           <span aria-hidden className="text-lg">🌱</span>
           <span>Needs Seeds</span>
         </Link>
+        {/* 検索(md以上はボックス、モバイルはアイコンで /search へ) */}
+        <form action="/search" className="hidden max-w-xs flex-1 md:block">
+          <input
+            type="search"
+            name="q"
+            maxLength={100}
+            placeholder="困りごとを検索"
+            className="w-full rounded-full border border-neutral-200 bg-neutral-50 px-4 py-1.5 text-sm focus:border-brand-300 focus:bg-white focus:outline-none"
+          />
+        </form>
+
         <nav className="flex items-center gap-3 text-sm">
+          <Link
+            href="/search"
+            aria-label="検索"
+            title="検索"
+            className="p-1 text-neutral-600 hover:text-brand-600 md:hidden"
+          >
+            <svg
+              aria-hidden
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              className="h-5 w-5"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+              />
+            </svg>
+          </Link>
           {profile ? (
             <>
               <Link

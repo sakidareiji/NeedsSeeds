@@ -84,6 +84,8 @@ export async function listPosts(opts: {
   page?: number;
   /** 投稿者の絞り込み(既定: all)。運営(admin)閲覧時のみ使う想定。 */
   authorFilter?: AuthorFilter;
+  /** キーワード検索(タイトル・本文の部分一致)。 */
+  searchQuery?: string;
 }): Promise<PostListPage> {
   const supabase = createClient();
   const limit = opts.limit ?? 30;
@@ -102,6 +104,18 @@ export async function listPosts(opts: {
       .single();
     if (!cat) return { items: [], hasMore: false };
     query = query.eq("category_id", cat.id);
+  }
+
+  if (opts.searchQuery) {
+    // ilike のパターン文字をエスケープし、or() の区切り文字(カンマ・括弧)は
+    // 空白に置き換える(PostgREST のフィルタ構文を壊さないため)。
+    const escaped = opts.searchQuery
+      .replace(/[\\%_]/g, (m) => `\\${m}`)
+      .replace(/[,()]/g, " ")
+      .trim();
+    if (escaped) {
+      query = query.or(`title.ilike.%${escaped}%,body.ilike.%${escaped}%`);
+    }
   }
 
   // Over-fetch a window, then sort. 注目順(F11)は quality_score / empathy を

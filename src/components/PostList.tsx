@@ -18,6 +18,7 @@ export function PostList({
   from = "all",
   currentUserId,
   emptyMessage,
+  extraParams,
 }: {
   posts: PostListItem[];
   hasMore: boolean;
@@ -27,6 +28,8 @@ export function PostList({
   from?: AuthorFilter;
   currentUserId: string | null;
   emptyMessage: string;
+  /** ページ送りリンクに引き継ぐ追加のクエリ(検索の q など)。 */
+  extraParams?: Record<string, string>;
 }) {
   if (posts.length === 0) {
     return <p className="py-12 text-center text-sm text-neutral-500">{emptyMessage}</p>;
@@ -37,7 +40,7 @@ export function PostList({
   const gated = !isLoggedIn && (posts.length > PREVIEW_LIMIT || hasMore);
 
   const pageHref = (p: number) => {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams(extraParams);
     if (sort === "new") params.set("sort", "new");
     if (from !== "all") params.set("from", from);
     if (p > 1) params.set("page", String(p));
