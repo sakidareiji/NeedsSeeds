@@ -88,11 +88,6 @@ export async function Header({ profile }: { profile: Profile | null }) {
                 <Avatar name={profile.display_name} userId={profile.id} size="sm" />
                 <span className="hidden sm:inline">{profile.display_name}</span>
               </Link>
-              {profile.role === "admin" && (
-                <Link href="/admin" className="text-neutral-500 hover:text-brand-600">
-                  運営
-                </Link>
-              )}
             </>
           ) : (
             <>

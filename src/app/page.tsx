@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { listPosts, type SortMode } from "@/lib/posts/queries";
 import { getActiveCategories } from "@/lib/categories";
-import { getAuthUser } from "@/lib/auth";
+import { getCurrentProfile } from "@/lib/auth";
 import { CategoryTabs } from "@/components/CategoryTabs";
 import { SortTabs } from "@/components/SortTabs";
 import { PostList } from "@/components/PostList";
@@ -13,14 +14,20 @@ export const dynamic = "force-dynamic";
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: { sort?: string; posted?: string; page?: string };
+  searchParams: { sort?: string; posted?: string; page?: string; preview?: string };
 }) {
+  // 運営(admin)はトップを開くとそのまま運営画面へ(?preview=1 でユーザー向け表示)。
+  const profile = await getCurrentProfile();
+  if (profile?.role === "admin" && searchParams.preview !== "1") {
+    redirect("/admin/top");
+  }
+  const user = profile;
+
   const sort: SortMode = searchParams.sort === "new" ? "new" : "featured";
   const page = Math.max(1, Number(searchParams.page) || 1);
-  const [{ items: posts, hasMore }, categories, user] = await Promise.all([
+  const [{ items: posts, hasMore }, categories] = await Promise.all([
     listPosts({ sort, page }),
     getActiveCategories(),
-    getAuthUser(),
   ]);
 
   return (
