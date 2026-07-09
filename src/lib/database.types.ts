@@ -63,6 +63,7 @@ export interface Database {
           name: string;
           sort_order: number;
           is_active: boolean;
+          description: string;
         };
         Insert: {
           id?: number;
@@ -70,12 +71,14 @@ export interface Database {
           name: string;
           sort_order?: number;
           is_active?: boolean;
+          description?: string;
         };
         Update: {
           slug?: string;
           name?: string;
           sort_order?: number;
           is_active?: boolean;
+          description?: string;
         };
         Relationships: [];
       };

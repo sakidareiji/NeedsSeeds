@@ -153,6 +153,64 @@ export async function listPosts(opts: {
   };
 }
 
+export type RelatedPost = {
+  id: string;
+  title: string;
+  empathy_count: number;
+  resolved_at: string | null;
+};
+
+/**
+ * 投稿詳細の「関連する困りごと」(SEO内部リンク)。同カテゴリの公開投稿を
+ * 注目順(quality/empathy加重)で返す。自分自身と運営投稿は除外。
+ */
+export async function listRelatedPosts(
+  post: { id: string; category_id: number },
+  limit = 5
+): Promise<RelatedPost[]> {
+  const supabase = createClient();
+  // 一覧(listPosts)と同様、admin除外がアプリ側フィルタのため広めに取得する。
+  const { data } = await supabase
+    .from("posts")
+    .select(
+      "id, title, empathy_count, quality_score, resolved_at, created_at, author:users(role)"
+    )
+    .eq("status", "published")
+    .eq("category_id", post.category_id)
+    .neq("id", post.id)
+    .order("created_at", { ascending: false })
+    .limit(Math.max(30, limit * 4));
+
+  type Row = RelatedPost & {
+    quality_score: number | null;
+    created_at: string;
+    author: { role: string } | null;
+  };
+  const rows = ((data ?? []) as unknown as Row[]).filter(
+    (p) => p.author?.role !== "admin"
+  );
+
+  const now = new Date();
+  return rows
+    .map((p) => ({
+      p,
+      score: featuredScore({
+        createdAt: new Date(p.created_at),
+        empathyCount: p.empathy_count,
+        qualityScore: p.quality_score,
+        now,
+      }),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map(({ p }) => ({
+      id: p.id,
+      title: p.title,
+      empathy_count: p.empathy_count,
+      resolved_at: p.resolved_at,
+    }));
+}
+
 /**
  * Fetch a single post by id. Respects RLS (published, or own post).
  * cache() dedupes the generateMetadata + page fetch within one request.

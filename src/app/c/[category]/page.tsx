@@ -16,7 +16,15 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const categories = await getActiveCategories();
   const cat = categories.find((c) => c.slug === params.category);
-  return { title: cat ? `${cat.name}の困りごと` : "カテゴリ" };
+  if (!cat) return { title: "カテゴリ" };
+  return {
+    title: `${cat.name}の困りごと`,
+    description: cat.description || undefined,
+    openGraph: {
+      title: `${cat.name}の困りごと`,
+      description: cat.description || undefined,
+    },
+  };
 }
 
 export default async function CategoryPage({
@@ -40,9 +48,14 @@ export default async function CategoryPage({
   return (
     <div className="space-y-6">
       <CategoryTabs categories={categories} activeSlug={cat.slug} />
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-bold">{cat.name}の困りごと</h1>
-        <SortTabs basePath={`/c/${cat.slug}`} sort={sort} />
+      <div className="space-y-1">
+        <div className="flex items-center justify-between">
+          <h1 className="text-lg font-bold">{cat.name}の困りごと</h1>
+          <SortTabs basePath={`/c/${cat.slug}`} sort={sort} />
+        </div>
+        {cat.description && (
+          <p className="text-sm text-neutral-500">{cat.description}</p>
+        )}
       </div>
       <PostList
         posts={posts}

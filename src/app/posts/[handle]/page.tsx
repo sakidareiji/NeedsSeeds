@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getPostById } from "@/lib/posts/queries";
+import { getPostById, listRelatedPosts } from "@/lib/posts/queries";
 import { getAuthUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getPostHints, getFollowUpQuestion } from "@/lib/solutions";
@@ -64,11 +64,59 @@ export default async function PostDetailPage({
   if (!post || post.status === "deleted") notFound();
   if (post.status !== "published" && !isOwner) notFound();
 
-  const [hints, followUp] = await Promise.all([
+  const [hints, followUp, related] = await Promise.all([
     getPostHints(post.id),
     getFollowUpQuestion(post.id),
+    post.status === "published"
+      ? listRelatedPosts({ id: post.id, category_id: post.category_id })
+      : Promise.resolve([]),
   ]);
   const handle = postHandle(post.id, post.title);
+
+  // QAPage 構造化データ(SEO)。回答に相当するもの(解決報告・解決のヒント)が
+  // ある公開投稿のみ出力する(Google のリッチリザルトは回答必須のため)。
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const postUrl = `${siteUrl}/posts/${handle}`;
+  const qaAnswers = [
+    ...(post.resolved_at && post.resolution_note ? [post.resolution_note] : []),
+    ...hints.map((h) => h.pitchText),
+  ];
+  const qaJsonLd =
+    post.status === "published" && qaAnswers.length > 0
+      ? {
+          "@context": "https://schema.org",
+          "@type": "QAPage",
+          mainEntity: {
+            "@type": "Question",
+            name: post.title,
+            text: post.body,
+            dateCreated: post.created_at,
+            answerCount: qaAnswers.length,
+            ...(post.author
+              ? { author: { "@type": "Person", name: post.author.display_name } }
+              : {}),
+            ...(post.resolved_at && post.resolution_note
+              ? {
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: post.resolution_note,
+                    url: postUrl,
+                    upvoteCount: post.empathy_count,
+                  },
+                }
+              : {}),
+            ...(hints.length > 0
+              ? {
+                  suggestedAnswer: hints.map((h) => ({
+                    "@type": "Answer",
+                    text: h.pitchText,
+                    url: postUrl,
+                  })),
+                }
+              : {}),
+          },
+        }
+      : null;
 
   // 現在ユーザーのリアクション状態(F5/F6)。
   let empathized = false;
@@ -102,6 +150,15 @@ export default async function PostDetailPage({
   return (
     // 本文の読みやすさのため、広いレイアウトの中でも読み幅は保つ。
     <article className="mx-auto max-w-3xl space-y-6">
+      {qaJsonLd && (
+        <script
+          type="application/ld+json"
+          // JSON内の "</script>" 等でHTMLが壊れないよう < をエスケープする
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(qaJsonLd).replace(/</g, "\\u003c"),
+          }}
+        />
+      )}
       <div>
         <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-neutral-500">
           {post.category && (
@@ -209,6 +266,49 @@ export default async function PostDetailPage({
           </div>
         )}
       </div>
+
+      {/* 関連する困りごと(SEO内部リンク): 同カテゴリの注目投稿へ回遊を促す */}
+      {related.length > 0 && (
+        <section className="border-t border-neutral-200 pt-5">
+          <h2 className="mb-3 text-sm font-bold text-neutral-700">
+            関連する困りごと
+          </h2>
+          <ul className="space-y-2">
+            {related.map((r) => (
+              <li key={r.id}>
+                <Link
+                  href={`/posts/${postHandle(r.id, r.title)}`}
+                  className="group flex items-baseline gap-2 text-sm"
+                >
+                  <span className="text-neutral-800 underline-offset-2 group-hover:text-brand-600 group-hover:underline">
+                    {r.title}
+                  </span>
+                  {r.resolved_at && (
+                    <span className="shrink-0 rounded-full bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-700">
+                      解決済み
+                    </span>
+                  )}
+                  {r.empathy_count > 0 && (
+                    <span className="shrink-0 text-xs text-neutral-400">
+                      わかる {r.empathy_count}
+                    </span>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {post.category && (
+            <p className="mt-3 text-xs">
+              <Link
+                href={`/c/${post.category.slug}`}
+                className="text-brand-600 hover:underline"
+              >
+                {post.category.name}の困りごとをもっと見る →
+              </Link>
+            </p>
+          )}
+        </section>
+      )}
     </article>
   );
 }
