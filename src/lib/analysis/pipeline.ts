@@ -3,7 +3,11 @@ import { analyzePost } from "@/lib/analysis/llm";
 import type { AnalysisOutput } from "@/lib/analysis/schema";
 import type { Json } from "@/lib/database.types";
 import { awardContribution } from "@/lib/contribution";
-import { createNotification, notifyAdmins } from "@/lib/notifications";
+import {
+  createNotification,
+  emailSolutionPresented,
+  notifyAdmins,
+} from "@/lib/notifications";
 import { assessmentPoints } from "@config/scoring";
 
 export type AnalysisRuleResult = {
@@ -166,11 +170,18 @@ export async function runAnalysis(postId: string): Promise<void> {
     });
 
     // 解決策が提示されたら投稿者へ通知(F6)。初回提示時のみ。
+    // メールは再訪トリガーとしてアプリ内通知を補完する(失敗しても解析は成功扱い)。
     if (postSolutions.length > 0 && (prevSolutionCount ?? 0) === 0) {
       await createNotification({
         userId: post.user_id,
         type: "solution_presented",
         payload: { postId: post.id, count: postSolutions.length },
+      });
+      await emailSolutionPresented({
+        userId: post.user_id,
+        postId: post.id,
+        postTitle: post.title,
+        count: postSolutions.length,
       });
     }
   } catch {

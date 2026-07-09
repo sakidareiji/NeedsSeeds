@@ -1,6 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/database.types";
+import { sendEmail } from "@/lib/email";
+import { postHandle } from "@/lib/format";
 
 export type NotificationType =
   | "empathy_milestone"
@@ -49,6 +51,46 @@ export async function createNotificationOnce(input: {
     user_id: input.userId,
     type: input.type,
     payload: input.payload as Json,
+  });
+}
+
+/**
+ * 解決のヒント提示をメールでも知らせる(再訪トリガー)。アプリ内通知の
+ * 補完なので、失敗してもパイプラインには影響させない(sendEmail は投げない)。
+ * 呼び出し元(pipeline)が初回提示時のみ呼ぶため、ここでは重複制御しない。
+ */
+export async function emailSolutionPresented(input: {
+  userId: string;
+  postId: string;
+  postTitle: string;
+  count: number;
+}): Promise<void> {
+  const admin = createAdminClient();
+  const { data } = await admin.auth.admin.getUserById(input.userId);
+  const email = data?.user?.email;
+  // 退会済み(メールを deleted.invalid に差し替え)には送らない
+  if (!email || email.endsWith("@deleted.invalid")) return;
+
+  const displayName =
+    (data?.user?.user_metadata?.display_name as string | undefined) ?? "投稿者";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const url = `${siteUrl}/posts/${postHandle(input.postId, input.postTitle)}`;
+
+  await sendEmail({
+    to: email,
+    subject: "【Needs Seeds】あなたの投稿に解決のヒントが届きました",
+    text: [
+      `${displayName} さん`,
+      "",
+      `投稿「${input.postTitle}」に、解決のヒントが${input.count}件届きました。`,
+      "以下のリンクから内容を確認できます。",
+      "",
+      url,
+      "",
+      "--",
+      "Needs Seeds",
+      "※このメールは、投稿へのヒント提示をお知らせする自動送信メールです。",
+    ].join("\n"),
   });
 }
 

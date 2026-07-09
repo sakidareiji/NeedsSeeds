@@ -101,6 +101,18 @@ npm run dev            # http://localhost:3000
   Email Templates の Confirm signup に `supabase/templates/confirmation.html` と
   同じ内容(リンク先 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`)を設定します。
 
+### 通知メール(再訪トリガー)
+
+AI解析で解決のヒントが**初めて提示されたとき**、投稿者に1通だけお知らせメールを
+送ります(`src/lib/email.ts` / `emailSolutionPresented`)。編集による再解析では
+重複送信しません。退会済みユーザーには送りません。
+
+- ローカル: 設定不要。Mailpit の SMTP(127.0.0.1:54325、`config.toml` の
+  `smtp_port`)へ送信され、http://localhost:54324 で確認できます。
+- 本番: `.env` に `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` /
+  `EMAIL_FROM` を設定します(`.env.example` 参照)。**未設定の場合は送信を
+  スキップ**するだけで、投稿・解析には影響しません。
+
 ## スクリプト
 
 ```bash
