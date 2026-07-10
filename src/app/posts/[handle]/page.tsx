@@ -66,7 +66,8 @@ export default async function PostDetailPage({
 
   const [hints, followUp, related] = await Promise.all([
     getPostHints(post.id),
-    getFollowUpQuestion(post.id),
+    // 追記促しは投稿者本人にしか表示しないため、本人のときだけ取得する。
+    isOwner ? getFollowUpQuestion(post.id) : Promise.resolve(null),
     post.status === "published"
       ? listRelatedPosts({ id: post.id, category_id: post.category_id })
       : Promise.resolve([]),
@@ -224,9 +225,10 @@ export default async function PostDetailPage({
 
       {showAnalyzing && <AnalyzingHints />}
 
-      {/* 追記促し(F3-7): 品質が低めの投稿に運営AIからの問いかけ */}
-      {followUp && (
-        <FollowUpComment question={followUp} canRespond={isOwner} postId={post.id} />
+      {/* 追記促し(F3-7): 運営AIから投稿者本人への問いかけ。本人しか追記できず、
+          第三者・未ログインには「情報不足の投稿」と見えるだけなので本人にのみ表示。 */}
+      {followUp && isOwner && (
+        <FollowUpComment question={followUp} canRespond postId={post.id} />
       )}
 
       <div className="flex flex-wrap items-center gap-3 border-t border-neutral-200 pt-4 text-sm text-neutral-500">
