@@ -211,6 +211,93 @@ export async function listRelatedPosts(
     }));
 }
 
+export type SimilarSolvedPost = {
+  id: string;
+  title: string;
+  resolvedBy: string | null;
+  resolutionNote: string;
+  empathyCount: number;
+};
+
+/**
+ * 「同じ悩みを解決した人」(F6 の解決報告)を回答エリアに添えるための取得。
+ * 同カテゴリの公開・解決済み(解決方法の記述あり)投稿から、AI解析の sub_tags
+ * (悩みの細分タグ)の一致度が高い順に返す。タグは公開ビュー post_public_analysis
+ * 経由(quality 等の非公開情報は出さない)。運営投稿・自分自身は除外。
+ */
+export async function listSimilarSolvedPosts(
+  post: { id: string; category_id: number },
+  limit = 3
+): Promise<SimilarSolvedPost[]> {
+  const supabase = createClient();
+
+  // 候補: 同カテゴリの解決済み(解決方法の記述あり)公開投稿。
+  const { data: cand } = await supabase
+    .from("posts")
+    .select(
+      "id, title, resolved_by, resolution_note, empathy_count, created_at, author:users(role)"
+    )
+    .eq("status", "published")
+    .eq("category_id", post.category_id)
+    .neq("id", post.id)
+    .not("resolved_at", "is", null)
+    .not("resolution_note", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  type Row = {
+    id: string;
+    title: string;
+    resolved_by: string | null;
+    resolution_note: string | null;
+    empathy_count: number;
+    created_at: string;
+    author: { role: string } | null;
+  };
+  const rows = ((cand ?? []) as unknown as Row[]).filter(
+    (r) => r.author?.role !== "admin" && r.resolution_note
+  );
+  if (rows.length === 0) return [];
+
+  // 現在の投稿+候補の sub_tags をまとめて取得し、タグ一致数でランク付けする。
+  const ids = [post.id, ...rows.map((r) => r.id)];
+  const { data: tagRows } = await supabase
+    .from("post_public_analysis")
+    .select("post_id, sub_tags")
+    .in("post_id", ids);
+
+  const tagMap = new Map<string, string[]>();
+  for (const t of (tagRows ?? []) as { post_id: string; sub_tags: unknown }[]) {
+    tagMap.set(
+      t.post_id,
+      Array.isArray(t.sub_tags) ? (t.sub_tags as string[]) : []
+    );
+  }
+  const currentTags = new Set(tagMap.get(post.id) ?? []);
+
+  return rows
+    .map((r) => {
+      const tags = tagMap.get(r.id) ?? [];
+      const overlap = tags.reduce((n, t) => n + (currentTags.has(t) ? 1 : 0), 0);
+      return { r, overlap };
+    })
+    // タグ一致数 → 共感数 → 新しさ の優先度で並べる。
+    .sort(
+      (a, b) =>
+        b.overlap - a.overlap ||
+        b.r.empathy_count - a.r.empathy_count ||
+        +new Date(b.r.created_at) - +new Date(a.r.created_at)
+    )
+    .slice(0, limit)
+    .map(({ r }) => ({
+      id: r.id,
+      title: r.title,
+      resolvedBy: r.resolved_by,
+      resolutionNote: r.resolution_note as string,
+      empathyCount: r.empathy_count,
+    }));
+}
+
 /**
  * Fetch a single post by id. Respects RLS (published, or own post).
  * cache() dedupes the generateMetadata + page fetch within one request.

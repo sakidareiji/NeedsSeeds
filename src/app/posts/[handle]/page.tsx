@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getPostById, listRelatedPosts } from "@/lib/posts/queries";
+import {
+  getPostById,
+  listRelatedPosts,
+  listSimilarSolvedPosts,
+} from "@/lib/posts/queries";
 import { getAuthUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getPostHints, getFollowUpQuestion } from "@/lib/solutions";
@@ -15,6 +19,7 @@ import {
 import type { Frequency } from "@/lib/database.types";
 import { DeletePostButton } from "@/components/DeletePostButton";
 import { SolutionHints } from "@/components/SolutionHints";
+import { SimilarSolvedPosts } from "@/components/SimilarSolvedPosts";
 import { SeverityBadge } from "@/components/SeverityBadge";
 import { AnalyzingHints } from "@/components/AnalyzingHints";
 import { FollowUpComment } from "@/components/FollowUpComment";
@@ -64,12 +69,15 @@ export default async function PostDetailPage({
   if (!post || post.status === "deleted") notFound();
   if (post.status !== "published" && !isOwner) notFound();
 
-  const [hints, followUp, related] = await Promise.all([
+  const [hints, followUp, related, similarSolved] = await Promise.all([
     getPostHints(post.id),
     // 追記促しは投稿者本人にしか表示しないため、本人のときだけ取得する。
     isOwner ? getFollowUpQuestion(post.id) : Promise.resolve(null),
     post.status === "published"
       ? listRelatedPosts({ id: post.id, category_id: post.category_id })
+      : Promise.resolve([]),
+    post.status === "published"
+      ? listSimilarSolvedPosts({ id: post.id, category_id: post.category_id })
       : Promise.resolve([]),
   ]);
   const handle = postHandle(post.id, post.title);
@@ -222,6 +230,9 @@ export default async function PostDetailPage({
       {/* 解決のヒント(F4): マスタ提示 + 一般アドバイスを同一UIで。センシティブ/
           NG投稿には何も出さない(パイプライン側で post_solutions を作らない)。 */}
       <SolutionHints hints={hints} />
+
+      {/* 同じ悩みを解決した人の実例(F6): AIの一般論に、実在の解決報告を添える。 */}
+      <SimilarSolvedPosts posts={similarSolved} />
 
       {showAnalyzing && <AnalyzingHints />}
 
