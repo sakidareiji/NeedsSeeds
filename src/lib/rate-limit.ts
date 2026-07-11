@@ -22,7 +22,8 @@ export async function canCreatePost(userId: string): Promise<boolean> {
  * 追記型の events(type='empathy')で数える(トグルの取消では減らさない)。
  *
  * NOTE: check-then-insert のため並行リクエストで数件超過しうるが、ソフト上限
- * (スパム抑止目的)なので許容する。厳密に締める必要が出たら DB トリガーで数える。
+ * (スパム抑止目的)なので許容する。厳密なレート制限が必要になったら、
+ * PostgreSQL の advisory lock または pg_cron で集計・制約を行う必要がある。
  */
 export async function canEmpathize(userId: string): Promise<boolean> {
   const admin = createAdminClient();

@@ -10,18 +10,11 @@ export type Profile = Database["public"]["Tables"]["users"]["Row"];
  * attachViewerEmpathized 等から複数回呼ばれても認証サーバーへの往復は1回)。
  */
 export const getAuthUser = cache(async () => {
-  try {
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    return user;
-  } catch (e) {
-    // getUser() は無効セッションでは投げない。ここに来るのは環境変数の設定ミス等
-    // なので、静かに「未ログイン」へ落とす前に必ずログへ残す。
-    console.error("[auth] getAuthUser で予期しないエラー", e);
-    return null;
-  }
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user;
 });
 
 /**

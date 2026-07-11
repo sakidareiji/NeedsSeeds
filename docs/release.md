@@ -44,7 +44,7 @@
 ```bash
 supabase login
 supabase link --project-ref <プロジェクトRef>   # URL の abcd1234 の部分
-supabase db push                                # migration 0001〜0011 を適用
+supabase db push                                # migration 0001〜0014 を適用
 ```
 
 シード(カテゴリ・解決策マスタのサンプル)は SQL Editor から `supabase/seed.sql` の内容を貼り付けて実行する。
