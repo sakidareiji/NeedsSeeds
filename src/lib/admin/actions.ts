@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assertAdmin } from "@/lib/admin/guard";
 import { runAnalysis } from "@/lib/analysis/pipeline";
@@ -19,6 +20,7 @@ export async function setPostStatus(
   const admin = createAdminClient();
   await admin.from("posts").update({ status }).eq("id", postId);
   revalidatePath("/admin/posts");
+  revalidatePath("/admin/top");
   revalidatePath("/");
 }
 
@@ -200,4 +202,34 @@ export async function importSeedPosts(
     .filter(Boolean)
     .join(" / ");
   return { ok: true, message: note };
+}
+
+// ---- 運営からのお知らせ(F8) -----------------------------------------------
+/** 全ユーザー(シードアカウント除く)へ type='admin' の通知を一括送信する。 */
+export async function sendAnnouncement(formData: FormData): Promise<void> {
+  await assertAdmin();
+
+  const message = String(formData.get("message") ?? "").trim();
+  if (!message || message.length > 500) {
+    redirect("/admin/announcements?error=1");
+  }
+
+  const admin = createAdminClient();
+  const { data: users } = await admin
+    .from("users")
+    .select("id")
+    .neq("role", "seed");
+
+  const recipients = users ?? [];
+  if (recipients.length > 0) {
+    await admin.from("notifications").insert(
+      recipients.map((u) => ({
+        user_id: u.id,
+        type: "admin",
+        payload: { message },
+      }))
+    );
+  }
+
+  redirect(`/admin/announcements?sent=${recipients.length}`);
 }

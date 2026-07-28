@@ -19,6 +19,9 @@ port = 54323
 [inbucket]
 enabled = true
 port = 54324
+# アプリからのトランザクションメール(解決ヒント通知など)をローカルで受ける
+# SMTP ポート。src/lib/email.ts の開発時デフォルト(127.0.0.1:54325)と対応。
+smtp_port = 54325
 
 [auth]
 enabled = true
@@ -29,12 +32,22 @@ enable_signup = true
 
 [auth.email]
 enable_signup = true
-enable_confirmations = false
+# 新規登録時にメールアドレスの確認を必須にする(F1)。
+# ローカルで届いたメールは http://localhost:54324 (Mailpit/Inbucket) で確認できる。
+enable_confirmations = true
+
+# 確認リンクは /auth/confirm(token_hash + verifyOtp)を使う。
+# 登録したブラウザと別のブラウザ(スマホのメールアプリ等)でリンクを
+# 開いても検証できる(PKCE の code 交換はブラウザを跨げないため)。
+# 本番は Dashboard → Authentication → Email Templates に同じ内容を設定する。
+[auth.email.template.confirmation]
+subject = "【Needs Seeds】メールアドレスの確認"
+content_path = "./supabase/templates/confirmation.html"
 
 # Google OAuth (F1). Set the secrets via env before `supabase start`:
 #   SUPABASE_AUTH_GOOGLE_CLIENT_ID / SUPABASE_AUTH_GOOGLE_SECRET
 [auth.external.google]
-enabled = false
+enabled = true
 client_id = "env(SUPABASE_AUTH_GOOGLE_CLIENT_ID)"
 secret = "env(SUPABASE_AUTH_GOOGLE_SECRET)"
 redirect_uri = "http://127.0.0.1:54321/auth/v1/callback"

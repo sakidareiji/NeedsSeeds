@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { isUniqueViolation } from "@/lib/supabase/errors";
 import { createNotificationOnce } from "@/lib/notifications";
 import { awardContribution } from "@/lib/contribution";
 import { logEvent } from "@/lib/events";
@@ -19,6 +20,24 @@ export async function toggleEmpathy(postId: string): Promise<EmpathyState> {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { empathized: false, count: 0, error: "ログインが必要です" };
+
+  // 自分の投稿には「わかる」を押せない(クライアント側の抑止に加え、
+  // サーバー側でも必ず検証する)。
+  const { data: targetPost } = await supabase
+    .from("posts")
+    .select("user_id")
+    .eq("id", postId)
+    .maybeSingle();
+  if (!targetPost) {
+    return { empathized: false, count: 0, error: "対象の投稿が見つかりません" };
+  }
+  if (targetPost.user_id === user.id) {
+    return {
+      empathized: false,
+      count: await empathyCount(supabase, postId),
+      error: "自分の投稿には「わかる」を押せません",
+    };
+  }
 
   const { data: existing } = await supabase
     .from("empathies")
@@ -92,6 +111,8 @@ async function onEmpathyAdded(postId: string, actorId: string): Promise<void> {
 export type ResolutionInput = {
   resolvedBy: ResolvedBy;
   solutionId?: string | null;
+  /** 「自力で解決」「その他」の解決方法(自由記述)。自力は必須。 */
+  note?: string | null;
 };
 
 /** F6 解決報告(投稿者のみ)。解決報告に貢献スコアを加点(高共感はボーナス)。 */
@@ -130,12 +151,26 @@ export async function reportResolution(
     solutionId = input.solutionId;
   }
 
+  // 「自力で解決」「その他」は解決方法の自由記述を保存する(自力は必須)。
+  // 解決策で解決した場合は resolved_solution_id が根拠になるため記述は持たない。
+  let note: string | null = null;
+  if (input.resolvedBy !== "solution") {
+    note = input.note?.trim() || null;
+    if (input.resolvedBy === "self" && !note) {
+      return { ok: false, error: "どうやって解決したかを記入してください" };
+    }
+    if (note && note.length > 1000) {
+      return { ok: false, error: "解決方法は1000字以内で入力してください" };
+    }
+  }
+
   const { error } = await supabase
     .from("posts")
     .update({
       resolved_at: new Date().toISOString(),
       resolved_by: input.resolvedBy,
       resolved_solution_id: solutionId,
+      resolution_note: note,
     })
     .eq("id", postId)
     .eq("user_id", user.id);
@@ -184,8 +219,12 @@ export async function markHelpful(
   const { error } = await supabase
     .from("helpful_marks")
     .insert({ post_id: postId, user_id: user.id });
-  // 既に付けている(unique違反)場合は加点しない。
-  if (error) return { ok: true };
+  if (error) {
+    // 既に付けている(unique違反)場合は成功扱いで加点しない。
+    // それ以外の失敗は握りつぶさずエラーとして返す。
+    if (isUniqueViolation(error)) return { ok: true };
+    return { ok: false, error: "登録に失敗しました" };
+  }
 
   await awardContribution({
     userId: post.user_id,

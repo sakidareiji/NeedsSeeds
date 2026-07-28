@@ -3,7 +3,7 @@
 日常や業務の「困りごと」を投稿すると、AIが解析して解決策(アフィリエイト案件・一般アドバイス)を自動提示し、良質な投稿には AI 査定による**貢献スコア**(換金不可)が蓄積される Web サービス。
 
 - 仕様書: [`needs_seeds_mvp_spec.md`](./needs_seeds_mvp_spec.md)
-- スタック: Next.js (App Router, TypeScript) / Supabase (PostgreSQL, Auth, RLS) / Anthropic API / Tailwind CSS / Vercel
+- スタック: Next.js (App Router, TypeScript) / Supabase (PostgreSQL, Auth, RLS) / Gemini API(Anthropic API にも切替可) / Tailwind CSS / Vercel
 
 ## 実装状況(マイルストーン)
 
@@ -21,7 +21,7 @@
 
 - Node.js 20+ / npm
 - [Supabase CLI](https://supabase.com/docs/guides/cli)(ローカル DB 用。内部で Docker を使用)
-- Anthropic API キー(M2 以降)
+- Gemini API キー(M2 のAI解析用。Anthropic API キーでも可)
 
 ### 手順
 
@@ -51,8 +51,11 @@ npm run dev            # http://localhost:3000
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `supabase start` が出力する anon key |
 | `SUPABASE_SERVICE_ROLE_KEY` | 同 service_role key(**サーバ専用**・RLS をバイパス。M2/M4 で使用) |
 | `NEXT_PUBLIC_SITE_URL` | 例 `http://localhost:3000` |
-| `ANTHROPIC_API_KEY` | Anthropic API キー(M2 以降) |
-| `ANTHROPIC_MODEL` | 解析に使うモデル ID(既定 `claude-sonnet-4-6`) |
+| `LLM_PROVIDER` | AI解析のプロバイダ: `gemini` / `anthropic`。未指定ならキーがある方(両方なら gemini) |
+| `GEMINI_API_KEY` | Gemini API キー(既定プロバイダ。M2 以降) |
+| `GEMINI_MODEL` | 解析に使うモデル ID(既定 `gemini-2.5-flash`) |
+| `ANTHROPIC_API_KEY` | Anthropic API キー(切替用。実装は残している) |
+| `ANTHROPIC_MODEL` | 同モデル ID(既定 `claude-sonnet-4-6`) |
 | `ANALYSIS_WORKER_SECRET` | 解析ワーカー(`/api/analyze`)の共有シークレット。未設定だと 503 |
 
 ### AI 解析パイプライン(M2)の動作
@@ -68,6 +71,8 @@ npm run dev            # http://localhost:3000
 - `/admin` は `users.role = 'admin'` のみアクセス可。管理操作はサービスロール(admin client)で実行する。
 - 機能: 投稿一覧/検索/公開状態変更・通報キュー・解析失敗キュー(再解析)・解決策マスタCRUD・カテゴリCRUD・KPI簡易表示・**種投稿の CSV/JSON 一括インポート**。
 - 最初の管理者は手動で付与する(ローカル): `supabase start` 後に SQL で `update public.users set role='admin' where id='<自分のauth uid>';`(Studio か psql で実行)。
+- **運営(admin)アカウントの投稿はユーザー向け一覧・プロフィールに表示されない**(運用・テスト投稿の混入防止。種投稿=seed は表示される)。
+- **企業アカウント**(将来用): `update public.users set role='company' where id='<uid>';` で指定すると投稿・プロフィールに「企業」バッジが付く。企業からの投稿はまだ正式な仕様ではなく、一覧の絞り込み等は未実装。
 - 種投稿インポート: 管理画面でシードアカウント(role=seed)を作成 → CSV/JSON を貼り付けて割り当て。CSV ヘッダは `title,body,category,severity,frequency`(category はカテゴリ slug)。
 
 ### Google OAuth(任意)
@@ -82,7 +87,31 @@ npm run dev            # http://localhost:3000
 > ⚠️ プロバイダを有効化せずに Google ボタンを押すと Supabase が
 > `Unsupported provider: provider is not enabled` を返します。有効化するまでは
 > `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=false`(既定)のままにしてください。
-> ローカルではメール確認は無効(`enable_confirmations = false`)なので、登録後すぐログインできます。
+
+### メール確認(F1)
+
+新規登録には確認メールのリンクを開く必要があります(`enable_confirmations = true`)。
+
+- 確認リンクは `/auth/confirm?token_hash=...&type=email` に着地し、`verifyOtp` で検証します
+  (登録したブラウザと別のブラウザでリンクを開いても動作します)。
+  テンプレートは `supabase/templates/confirmation.html`。
+- ローカルで届いたメールは http://localhost:54324 (Mailpit/Inbucket) で確認できます。
+- 未確認のままログインしようとするとエラーになり、確認メールの再送ボタンが表示されます。
+- 本番は Dashboard → Authentication で **Confirm email を有効化**し、
+  Email Templates の Confirm signup に `supabase/templates/confirmation.html` と
+  同じ内容(リンク先 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`)を設定します。
+
+### 通知メール(再訪トリガー)
+
+AI解析で解決のヒントが**初めて提示されたとき**、投稿者に1通だけお知らせメールを
+送ります(`src/lib/email.ts` / `emailSolutionPresented`)。編集による再解析では
+重複送信しません。退会済みユーザーには送りません。
+
+- ローカル: 設定不要。Mailpit の SMTP(127.0.0.1:54325、`config.toml` の
+  `smtp_port`)へ送信され、http://localhost:54324 で確認できます。
+- 本番: `.env` に `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` /
+  `EMAIL_FROM` を設定します(`.env.example` 参照)。**未設定の場合は送信を
+  スキップ**するだけで、投稿・解析には影響しません。
 
 ## スクリプト
 
@@ -116,10 +145,10 @@ supabase/seed.sql   初期カテゴリのシード
 
 ## デプロイ(Vercel + Supabase)
 
-1. **Supabase(本番)**: プロジェクトを作成し、`supabase link` → `supabase db push` でマイグレーションを適用、`supabase/seed.sql` のカテゴリを投入。Auth の Google プロバイダ設定と、Site URL / Redirect URL に本番ドメインを登録。
+1. **Supabase(本番)**: プロジェクトを作成し、`supabase link` → `supabase db push` でマイグレーションを適用、`supabase/seed.sql` のカテゴリを投入。Auth の Google プロバイダ設定と、Site URL / Redirect URL に本番ドメインを登録。メール確認を有効化し、Confirm signup テンプレートを設定(上記「メール確認(F1)」参照)。
 2. **Vercel**: リポジトリを import。環境変数(`.env.example` 参照)を設定:
    - `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY`
-   - `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL`
+   - `LLM_PROVIDER` / `GEMINI_API_KEY` / `GEMINI_MODEL`(Anthropic を使う場合は `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL`)
    - `NEXT_PUBLIC_SITE_URL`(本番ドメイン)
    - `ANALYSIS_WORKER_SECRET` と、同値の `CRON_SECRET`(`vercel.json` の毎分 Cron が `/api/analyze` を叩く際の認可)
 3. **初回管理者**: 自分のアカウントで登録後、`update public.users set role='admin' where id='<auth uid>';` を実行。

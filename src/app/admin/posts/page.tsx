@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { setPostStatus } from "@/lib/admin/actions";
 import { requireAdmin } from "@/lib/admin/guard";
+import { CompanyBadge } from "@/components/CompanyBadge";
 import { timeAgo } from "@/lib/format";
 import type { PostStatus } from "@/lib/database.types";
 
@@ -25,7 +26,7 @@ export default async function AdminPostsPage({
 
   let query = admin
     .from("posts")
-    .select("id, title, status, ai_status, created_at, author:users(display_name)")
+    .select("id, title, status, ai_status, created_at, author:users(display_name, role)")
     .order("created_at", { ascending: false })
     .limit(100);
   if (q) query = query.ilike("title", `%${q}%`);
@@ -38,7 +39,7 @@ export default async function AdminPostsPage({
     status: string;
     ai_status: string;
     created_at: string;
-    author: { display_name: string } | null;
+    author: { display_name: string; role: string } | null;
   }[];
 
   return (
@@ -84,7 +85,12 @@ export default async function AdminPostsPage({
                     {p.title}
                   </Link>
                 </td>
-                <td className="p-2 text-neutral-500">{p.author?.display_name ?? "-"}</td>
+                <td className="p-2 text-neutral-500">
+                  <span className="flex items-center gap-1.5">
+                    {p.author?.display_name ?? "-"}
+                    {p.author?.role === "company" && <CompanyBadge />}
+                  </span>
+                </td>
                 <td className="p-2">{STATUS_LABEL[p.status] ?? p.status}</td>
                 <td className="p-2 text-neutral-500">{p.ai_status}</td>
                 <td className="p-2">

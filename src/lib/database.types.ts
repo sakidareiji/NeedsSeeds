@@ -12,7 +12,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-export type UserRole = "user" | "admin" | "seed";
+export type UserRole = "user" | "admin" | "seed" | "company";
 export type PostStatus = "published" | "hidden" | "deleted";
 export type AiStatus = "pending" | "done" | "failed";
 export type ResolvedBy = "solution" | "self" | "other";
@@ -20,6 +20,7 @@ export type Frequency = "daily" | "weekly" | "monthly" | "rarely";
 export type SolutionStatus = "active" | "paused";
 export type SolutionSource = "master" | "ai_generated";
 export type ReportStatus = "open" | "reviewing" | "closed";
+export type Gender = "male" | "female" | "other" | "unspecified";
 
 export interface Database {
   public: {
@@ -29,6 +30,8 @@ export interface Database {
           id: string;
           display_name: string;
           bio: string | null;
+          gender: Gender | null;
+          age: number | null;
           role: UserRole;
           contribution_score: number;
           created_at: string;
@@ -37,6 +40,8 @@ export interface Database {
           id: string;
           display_name: string;
           bio?: string | null;
+          gender?: Gender | null;
+          age?: number | null;
           role?: UserRole;
           contribution_score?: number;
           created_at?: string;
@@ -44,6 +49,8 @@ export interface Database {
         Update: {
           display_name?: string;
           bio?: string | null;
+          gender?: Gender | null;
+          age?: number | null;
           role?: UserRole;
           contribution_score?: number;
         };
@@ -56,6 +63,7 @@ export interface Database {
           name: string;
           sort_order: number;
           is_active: boolean;
+          description: string;
         };
         Insert: {
           id?: number;
@@ -63,12 +71,14 @@ export interface Database {
           name: string;
           sort_order?: number;
           is_active?: boolean;
+          description?: string;
         };
         Update: {
           slug?: string;
           name?: string;
           sort_order?: number;
           is_active?: boolean;
+          description?: string;
         };
         Relationships: [];
       };
@@ -86,6 +96,7 @@ export interface Database {
           resolved_at: string | null;
           resolved_by: ResolvedBy | null;
           resolved_solution_id: string | null;
+          resolution_note: string | null;
           empathy_count: number;
           quality_score: number | null;
           created_at: string;
@@ -114,6 +125,7 @@ export interface Database {
           resolved_at?: string | null;
           resolved_by?: ResolvedBy | null;
           resolved_solution_id?: string | null;
+          resolution_note?: string | null;
         };
         Relationships: [];
       };

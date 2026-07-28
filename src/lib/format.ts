@@ -41,6 +41,13 @@ export const SEVERITY_LABELS: Record<number, string> = {
   5: "非常に困る",
 };
 
+/** 解決報告の手段ラベル(F6)。 */
+export const RESOLVED_BY_LABELS: Record<string, string> = {
+  solution: "解決策で解決",
+  self: "自力で解決",
+  other: "その他の方法で解決",
+};
+
 /** Relative Japanese time label, e.g. 「3時間前」. */
 export function timeAgo(iso: string, now: Date = new Date()): string {
   const diff = now.getTime() - new Date(iso).getTime();

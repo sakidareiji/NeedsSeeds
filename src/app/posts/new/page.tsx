@@ -12,12 +12,17 @@ export default async function NewPostPage() {
   const categories = await getActiveCategories();
 
   return (
-    <div>
+    <div className="mx-auto max-w-3xl">
       <h1 className="mb-1 text-2xl font-bold">困りごとを投稿</h1>
       <p className="mb-6 text-sm text-neutral-500">
         投稿すると、AIが解決のヒントを探します。
       </p>
-      <PostForm action={createPost} categories={categories} submitLabel="投稿する" />
+      <PostForm
+        action={createPost}
+        categories={categories}
+        submitLabel="投稿する"
+        withPrecheck
+      />
     </div>
   );
 }

@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getPostById } from "@/lib/posts/queries";
+import {
+  getPostById,
+  listRelatedPosts,
+  listSimilarSolvedPosts,
+} from "@/lib/posts/queries";
 import { getAuthUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getPostHints, getFollowUpQuestion } from "@/lib/solutions";
@@ -10,17 +14,21 @@ import {
   idFromHandle,
   postHandle,
   timeAgo,
-  SEVERITY_LABELS,
   FREQUENCY_LABELS,
 } from "@/lib/format";
 import type { Frequency } from "@/lib/database.types";
 import { DeletePostButton } from "@/components/DeletePostButton";
 import { SolutionHints } from "@/components/SolutionHints";
+import { SimilarSolvedPosts } from "@/components/SimilarSolvedPosts";
+import { SeverityBadge } from "@/components/SeverityBadge";
+import { AnalyzingHints } from "@/components/AnalyzingHints";
 import { FollowUpComment } from "@/components/FollowUpComment";
 import { EmpathyButton } from "@/components/EmpathyButton";
 import { ResolutionReport } from "@/components/ResolutionReport";
 import { HelpfulButton } from "@/components/HelpfulButton";
 import { GradeBadge } from "@/components/GradeBadge";
+import { CompanyBadge } from "@/components/CompanyBadge";
+import { Avatar } from "@/components/Avatar";
 import { ReportButton } from "@/components/ReportButton";
 
 export async function generateMetadata({
@@ -61,11 +69,63 @@ export default async function PostDetailPage({
   if (!post || post.status === "deleted") notFound();
   if (post.status !== "published" && !isOwner) notFound();
 
-  const [hints, followUp] = await Promise.all([
+  const [hints, followUp, related, similarSolved] = await Promise.all([
     getPostHints(post.id),
-    getFollowUpQuestion(post.id),
+    // 追記促しは投稿者本人にしか表示しないため、本人のときだけ取得する。
+    isOwner ? getFollowUpQuestion(post.id) : Promise.resolve(null),
+    post.status === "published"
+      ? listRelatedPosts({ id: post.id, category_id: post.category_id })
+      : Promise.resolve([]),
+    post.status === "published"
+      ? listSimilarSolvedPosts({ id: post.id, category_id: post.category_id })
+      : Promise.resolve([]),
   ]);
   const handle = postHandle(post.id, post.title);
+
+  // QAPage 構造化データ(SEO)。回答に相当するもの(解決報告・解決のヒント)が
+  // ある公開投稿のみ出力する(Google のリッチリザルトは回答必須のため)。
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+  const postUrl = `${siteUrl}/posts/${handle}`;
+  const qaAnswers = [
+    ...(post.resolved_at && post.resolution_note ? [post.resolution_note] : []),
+    ...hints.map((h) => h.pitchText),
+  ];
+  const qaJsonLd =
+    post.status === "published" && qaAnswers.length > 0
+      ? {
+          "@context": "https://schema.org",
+          "@type": "QAPage",
+          mainEntity: {
+            "@type": "Question",
+            name: post.title,
+            text: post.body,
+            dateCreated: post.created_at,
+            answerCount: qaAnswers.length,
+            ...(post.author
+              ? { author: { "@type": "Person", name: post.author.display_name } }
+              : {}),
+            ...(post.resolved_at && post.resolution_note
+              ? {
+                  acceptedAnswer: {
+                    "@type": "Answer",
+                    text: post.resolution_note,
+                    url: postUrl,
+                    upvoteCount: post.empathy_count,
+                  },
+                }
+              : {}),
+            ...(hints.length > 0
+              ? {
+                  suggestedAnswer: hints.map((h) => ({
+                    "@type": "Answer",
+                    text: h.pitchText,
+                    url: postUrl,
+                  })),
+                }
+              : {}),
+          },
+        }
+      : null;
 
   // 現在ユーザーのリアクション状態(F5/F6)。
   let empathized = false;
@@ -97,7 +157,17 @@ export default async function PostDetailPage({
     post.status === "published" && post.ai_status === "pending" && hints.length === 0;
 
   return (
-    <article className="space-y-6">
+    // 本文の読みやすさのため、広いレイアウトの中でも読み幅は保つ。
+    <article className="mx-auto max-w-3xl space-y-6">
+      {qaJsonLd && (
+        <script
+          type="application/ld+json"
+          // JSON内の "</script>" 等でHTMLが壊れないよう < をエスケープする
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(qaJsonLd).replace(/</g, "\\u003c"),
+          }}
+        />
+      )}
       <div>
         <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-neutral-500">
           {post.category && (
@@ -124,13 +194,17 @@ export default async function PostDetailPage({
         <div className="mt-2 flex items-center gap-3 text-sm text-neutral-500">
           {post.author && (
             <span className="flex items-center gap-1.5">
+              <Avatar name={post.author.display_name} userId={post.author.id} size="md" />
               <Link href={`/u/${post.author.id}`} className="hover:text-brand-600">
                 {post.author.display_name}
               </Link>
+              {post.author.role === "company" && <CompanyBadge />}
               <GradeBadge score={post.author.contribution_score} />
             </span>
           )}
-          <span>困る度合い: {SEVERITY_LABELS[post.severity]}</span>
+          <span className="flex items-center gap-1">
+            困り度: <SeverityBadge severity={post.severity} />
+          </span>
           {post.frequency && (
             <span>頻度: {FREQUENCY_LABELS[post.frequency as Frequency]}</span>
           )}
@@ -141,23 +215,31 @@ export default async function PostDetailPage({
         {post.body}
       </div>
 
+      {/* 投稿者が報告した解決方法(F6/F9)。自力・その他で記述があれば公開する。 */}
+      {post.resolved_at && post.resolution_note && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
+          <p className="mb-1 text-sm font-medium text-emerald-800">
+            投稿者による解決方法
+          </p>
+          <p className="whitespace-pre-wrap text-sm text-emerald-900/80">
+            {post.resolution_note}
+          </p>
+        </div>
+      )}
+
       {/* 解決のヒント(F4): マスタ提示 + 一般アドバイスを同一UIで。センシティブ/
           NG投稿には何も出さない(パイプライン側で post_solutions を作らない)。 */}
       <SolutionHints hints={hints} />
 
-      {showAnalyzing && (
-        <p className="rounded-xl border border-dashed border-neutral-200 p-4 text-sm text-neutral-400">
-          AIが解決のヒントを探しています。少し待って再読み込みしてください。
-        </p>
-      )}
+      {/* 同じ悩みを解決した人の実例(F6): AIの一般論に、実在の解決報告を添える。 */}
+      <SimilarSolvedPosts posts={similarSolved} />
 
-      {/* 追記促し(F3-7): 品質が低めの投稿に運営AIからの問いかけ */}
-      {followUp && (
-        <FollowUpComment
-          question={followUp}
-          canEdit={isOwner}
-          editHref={`/posts/${handle}/edit`}
-        />
+      {showAnalyzing && <AnalyzingHints />}
+
+      {/* 追記促し(F3-7): 運営AIから投稿者本人への問いかけ。本人しか追記できず、
+          第三者・未ログインには「情報不足の投稿」と見えるだけなので本人にのみ表示。 */}
+      {followUp && isOwner && (
+        <FollowUpComment question={followUp} canRespond postId={post.id} />
       )}
 
       <div className="flex flex-wrap items-center gap-3 border-t border-neutral-200 pt-4 text-sm text-neutral-500">
@@ -167,6 +249,7 @@ export default async function PostDetailPage({
           initialCount={post.empathy_count}
           initialEmpathized={empathized}
           canReact={!!user}
+          isOwnPost={isOwner}
         />
         {isOwner
           ? !post.resolved_at && (
@@ -182,9 +265,12 @@ export default async function PostDetailPage({
             )}
         {isOwner ? (
           <div className="ml-auto flex items-center gap-3">
-            <Link href={`/posts/${handle}/edit`} className="hover:text-brand-600">
-              編集
-            </Link>
+            {/* 「わかる」が一つでも付いたら編集不可(共感後の改ざん防止) */}
+            {post.empathy_count === 0 && (
+              <Link href={`/posts/${handle}/edit`} className="hover:text-brand-600">
+                編集
+              </Link>
+            )}
             <DeletePostButton postId={post.id} />
           </div>
         ) : (
@@ -193,6 +279,49 @@ export default async function PostDetailPage({
           </div>
         )}
       </div>
+
+      {/* 関連する困りごと(SEO内部リンク): 同カテゴリの注目投稿へ回遊を促す */}
+      {related.length > 0 && (
+        <section className="border-t border-neutral-200 pt-5">
+          <h2 className="mb-3 text-sm font-bold text-neutral-700">
+            関連する困りごと
+          </h2>
+          <ul className="space-y-2">
+            {related.map((r) => (
+              <li key={r.id}>
+                <Link
+                  href={`/posts/${postHandle(r.id, r.title)}`}
+                  className="group flex items-baseline gap-2 text-sm"
+                >
+                  <span className="text-neutral-800 underline-offset-2 group-hover:text-brand-600 group-hover:underline">
+                    {r.title}
+                  </span>
+                  {r.resolved_at && (
+                    <span className="shrink-0 rounded-full bg-emerald-50 px-1.5 py-0.5 text-xs text-emerald-700">
+                      解決済み
+                    </span>
+                  )}
+                  {r.empathy_count > 0 && (
+                    <span className="shrink-0 text-xs text-neutral-400">
+                      わかる {r.empathy_count}
+                    </span>
+                  )}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {post.category && (
+            <p className="mt-3 text-xs">
+              <Link
+                href={`/c/${post.category.slug}`}
+                className="text-brand-600 hover:underline"
+              >
+                {post.category.name}の困りごとをもっと見る →
+              </Link>
+            </p>
+          )}
+        </section>
+      )}
     </article>
   );
 }

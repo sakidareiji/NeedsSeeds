@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { reportPost, REPORT_REASONS } from "@/lib/reports/actions";
+import { reportPost } from "@/lib/reports/actions";
+import { REPORT_REASONS } from "@/lib/reports/reasons";
 
 /** F7 通報ボタン(理由選択式)。未ログインはログインへ誘導。 */
 export function ReportButton({

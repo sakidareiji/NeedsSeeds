@@ -26,7 +26,12 @@ export function HelpfulButton({
     if (marked) return;
     setMarked(true);
     start(async () => {
-      await markHelpful(postId);
+      const res = await markHelpful(postId);
+      if (res.error) {
+        // 登録失敗時は楽観更新を取り消す。
+        setMarked(false);
+        return;
+      }
       router.refresh();
     });
   }

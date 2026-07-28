@@ -1,15 +1,18 @@
+import { AppendForm } from "@/components/AppendForm";
+
 /**
  * 運営AIからの追記促し(F3-7)。責めないトーンで、投稿者に追記を促す。
- * 投稿者は本文の編集(追記)で応答でき、編集で再査定が走る。
+ * 応答は本文への「追記」で行う(既存本文は変更しない追加のみなので、
+ * 「わかる」が付いて編集ロックされた投稿でも応答できる)。追記で再査定が走る。
  */
 export function FollowUpComment({
   question,
-  canEdit,
-  editHref,
+  canRespond,
+  postId,
 }: {
   question: string;
-  canEdit: boolean;
-  editHref: string;
+  canRespond: boolean;
+  postId: string;
 }) {
   return (
     <aside className="rounded-xl border border-brand-200 bg-brand-50/60 p-4">
@@ -18,14 +21,7 @@ export function FollowUpComment({
         運営AIから
       </div>
       <p className="text-sm text-neutral-700">{question}</p>
-      {canEdit && (
-        <a
-          href={editHref}
-          className="mt-2 inline-block text-xs font-medium text-brand-700 hover:underline"
-        >
-          投稿を編集して追記する
-        </a>
-      )}
+      {canRespond && <AppendForm postId={postId} />}
     </aside>
   );
 }
