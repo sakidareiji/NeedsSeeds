@@ -8,6 +8,7 @@ const NAV = [
   { href: "/admin/kpi", label: "KPI" },
   { href: "/admin/posts", label: "投稿" },
   { href: "/admin/reports", label: "通報キュー" },
+  { href: "/admin/contact", label: "問い合わせ" },
   { href: "/admin/analysis", label: "解析失敗" },
   { href: "/admin/solutions", label: "解決策マスタ" },
   { href: "/admin/categories", label: "カテゴリ" },

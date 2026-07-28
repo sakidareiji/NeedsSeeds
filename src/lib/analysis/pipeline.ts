@@ -61,19 +61,35 @@ export function decidePostSolutions(
 }
 
 /**
+ * 落ちたワーカーが残した 'processing' を再取得するまでの猶予(可視性タイムアウト)。
+ * Vercel の maxDuration(60秒)より十分長く取り、正常に動いているワーカーの
+ * 投稿を横取りしないようにする。
+ */
+export const CLAIM_TIMEOUT_MS = 10 * 60 * 1000;
+
+/**
  * 1投稿の解析パイプラインを実行する(非同期ワーカーから呼ぶ)。
  * 例外は投げず、失敗時は ai_status='failed'(人力確認キュー)に落とす。
+ *
+ * 実行の最初に ai_status='processing' への UPDATE で投稿を「自分のもの」にする
+ * (0017)。毎分の Cron と投稿直後の起動が重なっても、確保できたワーカーだけが
+ * LLM を呼ぶ。確保できなければ何もせず戻る。
  */
 export async function runAnalysis(postId: string): Promise<void> {
   const admin = createAdminClient();
 
+  const staleBefore = new Date(Date.now() - CLAIM_TIMEOUT_MS).toISOString();
   const { data: post } = await admin
     .from("posts")
-    .select("id, user_id, title, body, severity, frequency, status, category_id")
+    .update({ ai_status: "processing", ai_started_at: new Date().toISOString() })
     .eq("id", postId)
+    .neq("status", "deleted")
+    // 他のワーカーが処理中(かつ生存)なら 0 行になる = 確保失敗。
+    .or(`ai_status.neq.processing,ai_started_at.lt.${staleBefore}`)
+    .select("id, user_id, title, body, severity, frequency, status, category_id")
     .maybeSingle();
 
-  if (!post || post.status === "deleted") return;
+  if (!post) return;
 
   try {
     const [{ data: cats }, { data: sols }, { data: cat }] = await Promise.all([
@@ -135,16 +151,22 @@ export async function runAnalysis(postId: string): Promise<void> {
         .insert(postSolutions.map((s) => ({ post_id: post.id, ...s })));
     }
 
-    // NG は非公開化(F7)。それ以外は published を維持。quality_score は
-    // 表示ソート(F11)用に posts にも保持(クライアントには select しない)。
+    // NG は非公開化(F7)。モデレーションは安全側なので、解析中に投稿が編集
+    // されていても(= 確保が外れていても)必ず適用する。
+    if (rules.hide) {
+      await admin.from("posts").update({ status: "hidden" }).eq("id", post.id);
+    }
+
+    // 解析結果の反映は「自分が確保したままのとき」だけ行う。解析中にユーザーが
+    // 編集すると ai_status は 'pending' に戻る(0013)ので、古い内容の結果で
+    // 'done' にしてしまわないよう、その場合は次のワーカーに任せる。
+    // quality_score は表示ソート(F11)用に posts にも保持(0015 でクライアント
+    // からは読めない)。
     await admin
       .from("posts")
-      .update({
-        ai_status: "done",
-        quality_score: output.quality_score,
-        ...(rules.hide ? { status: "hidden" } : {}),
-      })
-      .eq("id", post.id);
+      .update({ ai_status: "done", quality_score: output.quality_score })
+      .eq("id", post.id)
+      .eq("ai_status", "processing");
 
     // 非公開化したら運営へ通知(F7)。再解析での重複通知を避けるため、
     // 公開中→非公開に変わったときだけ送る。
@@ -186,6 +208,11 @@ export async function runAnalysis(postId: string): Promise<void> {
     }
   } catch {
     // 解析失敗 → 人力確認キュー(F3)。投稿・閲覧は影響を受けない。
-    await admin.from("posts").update({ ai_status: "failed" }).eq("id", post.id);
+    // 完了時と同様、確保したままのときだけ失敗として確定させる。
+    await admin
+      .from("posts")
+      .update({ ai_status: "failed" })
+      .eq("id", post.id)
+      .eq("ai_status", "processing");
   }
 }

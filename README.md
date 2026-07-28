@@ -57,6 +57,7 @@ npm run dev            # http://localhost:3000
 | `ANTHROPIC_API_KEY` | Anthropic API キー(切替用。実装は残している) |
 | `ANTHROPIC_MODEL` | 同モデル ID(既定 `claude-sonnet-4-6`) |
 | `ANALYSIS_WORKER_SECRET` | 解析ワーカー(`/api/analyze`)の共有シークレット。未設定だと 503 |
+| `CONTACT_EMAIL` | 問い合わせ(`/contact`)受信時の通知先。未設定なら通知だけスキップ(受付・保存は動く) |
 
 ### AI 解析パイプライン(M2)の動作
 
@@ -64,6 +65,8 @@ npm run dev            # http://localhost:3000
 - 解析は **1 投稿 1 回の LLM 呼び出し**(forced tool call → zod 検証、失敗時は最大2回リトライ→ `ai_status='failed'` で人力確認キューへ)。
 - `ai_status='pending' / 'failed'` を DB フラグ(=簡易キュー)として、Vercel Cron が毎分 `/api/analyze`(GET)で拾い直す。ローカル開発では投稿直後に fire-and-forget で走る。
 - **Vercel Cron の認可**: `ANALYSIS_WORKER_SECRET` と同じ値を `CRON_SECRET` に設定すると、Cron の `Authorization: Bearer` が通る。手動実行は `curl -XPOST -H "x-worker-secret: <secret>" $SITE/api/analyze`(`{"postId":"..."}` で単一投稿も可)。
+- **⚠️ 毎分 Cron は Vercel Pro 以上が必要**(Hobby は1日1回まで。短い間隔だとデプロイが失敗する)。無料で運用する場合は `vercel.json` の `crons` を削除し、外部の Cron サービスから上記の `curl` を叩く。詳細は [`docs/release.md`](./docs/release.md) の「4-4. Cron の確認」。
+- **排他制御(0017)**: 拾った投稿は `ai_status='processing'` にして確保するため、Cron と手動実行・投稿直後の起動が重なっても二重に LLM を呼ばない。確保したまま落ちたワーカーの投稿は10分後に回収される。
 - 解決策マスタが空でもパイプラインは動作し、マッチ0件時は一般アドバイスを提示する。ローカルでは `supabase/seed.sql` にサンプル解決策を投入済み。
 
 ### 運営管理画面(M4)
@@ -113,6 +116,43 @@ AI解析で解決のヒントが**初めて提示されたとき**、投稿者�
   `EMAIL_FROM` を設定します(`.env.example` 参照)。**未設定の場合は送信を
   スキップ**するだけで、投稿・解析には影響しません。
 
+### 問い合わせ窓口(`/contact`)
+
+個人情報の開示・訂正・削除の請求、権利侵害の申告を受け付ける公開窓口です
+(個人情報を取得し広告を掲載する以上、窓口の設置は公開の前提)。未ログインでも送信できます。
+
+- 受信内容は `contact_messages` に保存され、**運営は `/admin/contact` から読む**
+  (RLS + GRANT 剥奪でサービスロール専用。一般ユーザーからは読めません)。
+- `CONTACT_EMAIL` を設定すると、受信時に運営へメール通知も飛びます(**保存が正・通知は副**。
+  SMTP 障害で問い合わせを取りこぼさないため)。
+- スパム対策: 同一IPから 5件/時(`config/limits.ts` の `contactsPerHour`)+ ハニーポット。
+
+### 一覧の並び(0019)
+
+注目順・新着の並び替え、運営投稿の除外、ページング、キーワード検索は
+**DB 関数 `feed_post_ids()` に集約**している(アプリは並んだ id を受け取り、
+本体を通常の RLS 経由で引くだけ)。以前の「100件だけ取ってアプリ側でソート」では
+窓より古い高共感の投稿がランク外に落ち、ページ境界もずれていた。
+
+- 注目順の重みは `ranking_weights` テーブル(1行)。**デプロイなしで調整できる**:
+  ```sql
+  update public.ranking_weights set empathy_weight = 0.8, half_life_hours = 72;
+  ```
+- 重みと `quality_score` はクライアントから読めない(並び順から査定値を逆算されないため)。
+- 並びの性質は `src/lib/__tests__/feed-ranking.integration.test.ts` で実 DB に対して検証する。
+
+### 非公開の情報について(0015 / 0016)
+
+anon キーは公開されるため、「UIに出していない = 秘密」ではありません。以下は
+RLS(行)ではなく**列単位の GRANT / テーブル分離**で塞いでいます。
+
+- `users.gender` / `age` → `user_private` テーブル(本人のみ RLS で読み書き)。
+- `posts.quality_score`(AI査定) → anon/authenticated から列単位で revoke。
+  注目順の算出だけがサービスロールで読みます(`fetchQualityScores`)。
+- 「わかる」「私も解決した」は RLS 側でも自己リアクション・非公開投稿・連投を拒否
+  (Server Action だけの検証では REST 直叩きで回避できるため)。
+- **posts を読むクエリは列を必ず明示すること**(`select=*` は permission denied になります)。
+
 ## スクリプト
 
 ```bash
@@ -130,7 +170,7 @@ npm run db:reset    # ローカル DB をマイグレーション+シードで�
 src/app/            App Router のページ・ルート
 src/components/     UI コンポーネント
 src/lib/            Supabase クライアント、クエリ、Server Actions、ヘルパー
-config/             運用中に調整する設定(ランキング係数など。コード変更不要)
+config/             運用中に調整する設定(貢献スコア・グレード・レートリミット。コード変更不要)
 prompts/            LLM プロンプト(M2。コード変更なしで調整可能)
 supabase/migrations 各マイルストーンごとの SQL マイグレーション
 supabase/seed.sql   初期カテゴリのシード

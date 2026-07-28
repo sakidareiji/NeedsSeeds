@@ -1,7 +1,6 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthUser } from "@/lib/auth";
-import { featuredScore } from "@config/ranking";
 
 export type PostListItem = {
   id: string;
@@ -10,7 +9,6 @@ export type PostListItem = {
   severity: number;
   frequency: string | null;
   empathy_count: number;
-  quality_score: number | null;
   status: string;
   resolved_at: string | null;
   created_at: string;
@@ -35,9 +33,57 @@ export type PostDetail = PostListItem & {
 };
 
 export const LIST_SELECT =
-  "id, title, body, severity, frequency, empathy_count, quality_score, status, resolved_at, created_at, category:categories(id, slug, name), author:users(id, display_name, contribution_score, role)";
+  "id, title, body, severity, frequency, empathy_count, status, resolved_at, created_at, category:categories(id, slug, name), author:users(id, display_name, contribution_score, role)";
 
 export type SortMode = "featured" | "new";
+
+/** LIKE のメタ文字を打ち消す(検索語をそのまま部分一致に使うため)。 */
+function escapeLikePattern(q: string): string {
+  return q.replace(/[\\%_]/g, (m) => `\\${m}`).trim();
+}
+
+/**
+ * 一覧に出す投稿の id を、指定の並びで DB から受け取る(0019 の feed_post_ids)。
+ *
+ * 並び替え・運営投稿の除外・ページングは全て DB 側で行う。アプリ側で窓を切って
+ * ソートしていた頃と違い、窓より古い高共感の投稿が落ちることも、ページ境界が
+ * ずれることもない。注目順の重みと quality_score は関数の内側に閉じている。
+ */
+async function feedPostIds(
+  supabase: ReturnType<typeof createClient>,
+  opts: {
+    sort: SortMode;
+    categoryId?: number | null;
+    search?: string | null;
+    excludePostId?: string | null;
+    limit: number;
+    offset?: number;
+  }
+): Promise<string[]> {
+  const { data } = await supabase.rpc("feed_post_ids", {
+    p_sort: opts.sort,
+    p_category_id: opts.categoryId ?? null,
+    p_search: opts.search || null,
+    p_exclude_post_id: opts.excludePostId ?? null,
+    p_limit: opts.limit,
+    p_offset: opts.offset ?? 0,
+  });
+  return data ?? [];
+}
+
+/** id の並びを保ったまま、一覧表示に必要な列を取得する(RLS 経由)。 */
+async function fetchListItems(
+  supabase: ReturnType<typeof createClient>,
+  ids: string[]
+): Promise<Omit<PostListItem, "viewer_empathized">[]> {
+  if (ids.length === 0) return [];
+  const { data } = await supabase.from("posts").select(LIST_SELECT).in("id", ids);
+  const rows = (data ?? []) as unknown as Omit<PostListItem, "viewer_empathized">[];
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  return ids
+    .map((id) => byId.get(id))
+    .filter((r): r is Omit<PostListItem, "viewer_empathized"> => Boolean(r));
+}
 
 /**
  * 一覧の各投稿に、閲覧者自身の「わかる」状態を付与する(未ログイン時は全て false)。
@@ -81,11 +127,7 @@ export async function listPosts(opts: {
   const limit = opts.limit ?? 30;
   const page = Math.max(1, opts.page ?? 1);
 
-  let query = supabase
-    .from("posts")
-    .select(LIST_SELECT)
-    .eq("status", "published");
-
+  let categoryId: number | null = null;
   if (opts.categorySlug) {
     const { data: cat } = await supabase
       .from("categories")
@@ -93,62 +135,24 @@ export async function listPosts(opts: {
       .eq("slug", opts.categorySlug)
       .single();
     if (!cat) return { items: [], hasMore: false };
-    query = query.eq("category_id", cat.id);
+    categoryId = cat.id;
   }
 
-  if (opts.searchQuery) {
-    // ilike のパターン文字をエスケープし、or() の区切り文字(カンマ・括弧)は
-    // 空白に置き換える(PostgREST のフィルタ構文を壊さないため)。
-    const escaped = opts.searchQuery
-      .replace(/[\\%_]/g, (m) => `\\${m}`)
-      .replace(/[,()]/g, " ")
-      .trim();
-    if (escaped) {
-      query = query.or(`title.ilike.%${escaped}%,body.ilike.%${escaped}%`);
-    }
-  }
+  // 並び・運営投稿の除外・ページングは DB 側(0019)。次ページの有無を知るため
+  // 1件多く要求する。
+  const ids = await feedPostIds(supabase, {
+    sort: opts.sort ?? "featured",
+    categoryId,
+    search: opts.searchQuery ? escapeLikePattern(opts.searchQuery) : null,
+    limit: limit + 1,
+    offset: (page - 1) * limit,
+  });
 
-  // Over-fetch a window, then sort. 注目順(F11)は quality_score / empathy を
-  // 加味するため、新着で広めに取得してからアプリ側で加重ソートする。
-  // ページングも窓の中で行う(admin除外がアプリ側フィルタのため、DBの
-  // range() では正確なページ境界を切れない)。
-  // NOTE(M2): それより古い高共感投稿はランク外に落ちる。投稿数が増えたら
-  // スコアを DB 側にマテリアライズして order by / range する。
-  const windowSize = Math.max(100, page * limit + 1);
-  const { data } = await query
-    .order("created_at", { ascending: false })
-    .limit(windowSize);
-
-  const fetched = (data ?? []) as unknown as Omit<PostListItem, "viewer_empathized">[];
-
-  // 運営(admin)アカウントの投稿はユーザー向け一覧に出さない(運用・テスト投稿の混入防止)。
-  // 種投稿(seed)はコールドスタート用コンテンツなので表示する。
-  const rows = fetched.filter((p) => p.author?.role !== "admin");
-
-  const sorted =
-    opts.sort === "new"
-      ? rows
-      : (() => {
-          const now = new Date();
-          return rows
-            .map((p) => ({
-              p,
-              score: featuredScore({
-                createdAt: new Date(p.created_at),
-                empathyCount: p.empathy_count,
-                qualityScore: p.quality_score,
-                now,
-              }),
-            }))
-            .sort((a, b) => b.score - a.score)
-            .map(({ p }) => p);
-        })();
-
-  const pageItems = sorted.slice((page - 1) * limit, page * limit);
-  const hasMore = sorted.length > page * limit;
+  const hasMore = ids.length > limit;
+  const items = await fetchListItems(supabase, ids.slice(0, limit));
 
   return {
-    items: await attachViewerEmpathized(supabase, pageItems),
+    items: await attachViewerEmpathized(supabase, items),
     hasMore,
   };
 }
@@ -169,46 +173,26 @@ export async function listRelatedPosts(
   limit = 5
 ): Promise<RelatedPost[]> {
   const supabase = createClient();
-  // 一覧(listPosts)と同様、admin除外がアプリ側フィルタのため広めに取得する。
+  // 一覧と同じ並び(0019)。同カテゴリ・自分自身と運営投稿の除外も DB 側で行う。
+  const ids = await feedPostIds(supabase, {
+    sort: "featured",
+    categoryId: post.category_id,
+    excludePostId: post.id,
+    limit,
+  });
+  if (ids.length === 0) return [];
+
   const { data } = await supabase
     .from("posts")
-    .select(
-      "id, title, empathy_count, quality_score, resolved_at, created_at, author:users(role)"
-    )
-    .eq("status", "published")
-    .eq("category_id", post.category_id)
-    .neq("id", post.id)
-    .order("created_at", { ascending: false })
-    .limit(Math.max(30, limit * 4));
+    .select("id, title, empathy_count, resolved_at")
+    .in("id", ids);
 
-  type Row = RelatedPost & {
-    quality_score: number | null;
-    created_at: string;
-    author: { role: string } | null;
-  };
-  const rows = ((data ?? []) as unknown as Row[]).filter(
-    (p) => p.author?.role !== "admin"
+  const byId = new Map(
+    ((data ?? []) as unknown as RelatedPost[]).map((r) => [r.id, r])
   );
-
-  const now = new Date();
-  return rows
-    .map((p) => ({
-      p,
-      score: featuredScore({
-        createdAt: new Date(p.created_at),
-        empathyCount: p.empathy_count,
-        qualityScore: p.quality_score,
-        now,
-      }),
-    }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
-    .map(({ p }) => ({
-      id: p.id,
-      title: p.title,
-      empathy_count: p.empathy_count,
-      resolved_at: p.resolved_at,
-    }));
+  return ids
+    .map((id) => byId.get(id))
+    .filter((r): r is RelatedPost => Boolean(r));
 }
 
 export type SimilarSolvedPost = {
@@ -308,7 +292,7 @@ export const getPostById = cache(
     const { data } = await supabase
       .from("posts")
       .select(
-        "id, user_id, category_id, title, body, severity, frequency, empathy_count, quality_score, status, ai_status, resolved_at, resolved_by, resolution_note, created_at, updated_at, category:categories(id, slug, name), author:users(id, display_name, contribution_score, role)"
+        "id, user_id, category_id, title, body, severity, frequency, empathy_count, status, ai_status, resolved_at, resolved_by, resolution_note, created_at, updated_at, category:categories(id, slug, name), author:users(id, display_name, contribution_score, role)"
       )
       .eq("id", id)
       .maybeSingle();

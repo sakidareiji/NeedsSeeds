@@ -63,8 +63,16 @@ export async function toggleEmpathy(postId: string): Promise<EmpathyState> {
       .from("empathies")
       .insert({ post_id: postId, user_id: user.id });
     if (error) {
-      // 重複(既に押下済み)などはトグル済み扱いにする。
-      return { empathized: true, count: await empathyCount(supabase, postId) };
+      // 重複(既に押下済み)はトグル済み扱い。それ以外(RLS で弾かれた等)は
+      // 押せたように見せず、失敗として返す。
+      if (isUniqueViolation(error)) {
+        return { empathized: true, count: await empathyCount(supabase, postId) };
+      }
+      return {
+        empathized: false,
+        count: await empathyCount(supabase, postId),
+        error: "「わかる」を登録できませんでした",
+      };
     }
     empathized = true;
     await onEmpathyAdded(postId, user.id);

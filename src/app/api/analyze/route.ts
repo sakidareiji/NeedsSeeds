@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { runAnalysis } from "@/lib/analysis/pipeline";
+import { runAnalysis, CLAIM_TIMEOUT_MS } from "@/lib/analysis/pipeline";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,24 +31,38 @@ function authorized(request: NextRequest, secrets: string[]): boolean {
 
 /**
  * 未解析の投稿を拾い直して解析する(F3 のキュー処理)。
- * cron(GET)は pending のみ。failed は人力確認キューであり、自動で再試行
- * すると恒久失敗の投稿へ毎分 LLM を叩き続けるため、手動 POST に限定する。
+ * cron(GET)は pending と、落ちたワーカーが残した stale な processing のみ。
+ * failed は人力確認キューであり、自動で再試行すると恒久失敗の投稿へ毎分 LLM を
+ * 叩き続けるため、手動 POST に限定する。
+ *
+ * 実際の排他は runAnalysis 側の確保(0017)で行うので、ここで拾った投稿が
+ * 別のワーカーと重なっても二重に解析されることはない。
  */
-async function runBatch(statuses: ("pending" | "failed")[]): Promise<number> {
+async function runBatch(includeFailed: boolean): Promise<number> {
   const admin = createAdminClient();
+  const staleBefore = new Date(Date.now() - CLAIM_TIMEOUT_MS).toISOString();
+  const queue = [
+    "ai_status.eq.pending",
+    // 確保したまま落ちたワーカーの投稿を回収する。
+    `and(ai_status.eq.processing,ai_started_at.lt.${staleBefore})`,
+    ...(includeFailed ? ["ai_status.eq.failed"] : []),
+  ].join(",");
+
   const { data } = await admin
     .from("posts")
     .select("id")
-    .in("ai_status", statuses)
+    .or(queue)
     .neq("status", "deleted")
     .order("created_at", { ascending: true })
     .limit(BATCH_LIMIT);
 
   const ids = (data ?? []).map((p) => p.id);
+  let processed = 0;
   for (const id of ids) {
     await runAnalysis(id);
+    processed += 1;
   }
-  return ids.length;
+  return processed;
 }
 
 /**
@@ -66,7 +80,7 @@ export async function GET(request: NextRequest) {
   if (!authorized(request, secrets)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const processed = await runBatch(["pending"]);
+  const processed = await runBatch(false);
   return NextResponse.json({ processed });
 }
 
@@ -87,6 +101,6 @@ export async function POST(request: NextRequest) {
   }
 
   // 手動実行のみ failed(人力確認キュー)も再試行対象に含める。
-  const processed = await runBatch(["pending", "failed"]);
+  const processed = await runBatch(true);
   return NextResponse.json({ processed });
 }

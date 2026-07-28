@@ -7,7 +7,8 @@ import { postInputSchema } from "@/lib/posts/schema";
 import { postHandle } from "@/lib/format";
 import { enqueueAnalysis } from "@/lib/analysis/enqueue";
 import { precheckDraft } from "@/lib/analysis/precheck";
-import { canCreatePost } from "@/lib/rate-limit";
+import { canCreatePost, canPrecheckDraft } from "@/lib/rate-limit";
+import { logEvent } from "@/lib/events";
 
 export type ActionState = { error?: string } | null;
 
@@ -41,6 +42,11 @@ export async function checkPostDraft(input: {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { advice: null };
+
+  // レートリミット。上限に達したらアドバイスなし扱いで素通しする(この機能は
+  // 任意の補助なので、投稿を止めるよりチェックを省く方が正しい)。
+  if (!(await canPrecheckDraft(user.id))) return { advice: null };
+  await logEvent({ type: "precheck", userId: user.id });
 
   try {
     // フォームで入力済みの困る度合い・頻度も渡し、重ねて尋ねないようにする。

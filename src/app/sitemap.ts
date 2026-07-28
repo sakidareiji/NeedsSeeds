@@ -25,6 +25,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE}/terms` },
     { url: `${BASE}/privacy` },
     { url: `${BASE}/about` },
+    { url: `${BASE}/contact` },
   ];
 
   const categoryPages: MetadataRoute.Sitemap = (cats ?? []).map((c) => ({

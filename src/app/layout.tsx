@@ -40,6 +40,9 @@ export default async function RootLayout({
               <a href="/about" className="hover:text-brand-600">
                 運営者情報
               </a>
+              <a href="/contact" className="hover:text-brand-600">
+                お問い合わせ
+              </a>
             </nav>
             <p>© {new Date().getFullYear()} Needs Seeds</p>
           </div>

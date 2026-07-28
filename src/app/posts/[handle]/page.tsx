@@ -153,8 +153,11 @@ export default async function PostDetailPage({
     ).catch(() => {});
   }
 
+  // 解析待ち(pending)と解析中(processing / 0017)のどちらでも「解析中」を出す。
   const showAnalyzing =
-    post.status === "published" && post.ai_status === "pending" && hints.length === 0;
+    post.status === "published" &&
+    (post.ai_status === "pending" || post.ai_status === "processing") &&
+    hints.length === 0;
 
   return (
     // 本文の読みやすさのため、広いレイアウトの中でも読み幅は保つ。

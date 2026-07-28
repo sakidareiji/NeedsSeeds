@@ -6,48 +6,19 @@
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createClient } from "@supabase/supabase-js";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
-function loadEnvLocal(): Record<string, string> {
-  try {
-    const txt = readFileSync(resolve(__dirname, "../../../.env.local"), "utf8");
-    return Object.fromEntries(
-      txt
-        .split("\n")
-        .map((l) => l.trim())
-        .filter((l) => l && !l.startsWith("#") && l.includes("="))
-        .map((l) => {
-          const i = l.indexOf("=");
-          return [l.slice(0, i).trim(), l.slice(i + 1).trim()] as const;
-        })
-    );
-  } catch {
-    return {};
-  }
-}
-
-const env = { ...loadEnvLocal(), ...process.env };
-const url = env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const anonKey = env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-
-async function supabaseAvailable(): Promise<boolean> {
-  if (!url || !anonKey || !serviceKey) return false;
-  try {
-    const res = await fetch(`${url}/auth/v1/health`, {
-      headers: { apikey: anonKey },
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
+import {
+  url,
+  anonKey,
+  serviceKey,
+  supabaseAvailable,
+  FALLBACK_URL,
+  FALLBACK_KEY,
+} from "./helpers/local-supabase";
 
 const available = await supabaseAvailable();
 
 describe.skipIf(!available)("クリティカルパス: 認証→投稿→RLS", () => {
-  const admin = createClient(url, serviceKey, {
+  const admin = createClient(url || FALLBACK_URL, serviceKey || FALLBACK_KEY, {
     auth: { persistSession: false },
   });
   const email = `it-critical-${Date.now()}@example.com`;

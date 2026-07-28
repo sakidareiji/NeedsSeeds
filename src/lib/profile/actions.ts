@@ -34,12 +34,25 @@ export async function updateProfile(
     .update({
       display_name: parsed.data.display_name,
       bio: parsed.data.bio,
-      gender: parsed.data.gender,
-      age: parsed.data.age,
     })
     .eq("id", user.id);
 
   if (error) return { error: "更新に失敗しました。しばらくして再度お試しください。" };
+
+  // 性別・年齢は公開しない属性なので本人限定の別テーブルに持つ(0015)。
+  const { error: privateError } = await supabase.from("user_private").upsert(
+    {
+      user_id: user.id,
+      gender: parsed.data.gender,
+      age: parsed.data.age,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" }
+  );
+
+  if (privateError) {
+    return { error: "更新に失敗しました。しばらくして再度お試しください。" };
+  }
 
   revalidatePath(`/u/${user.id}`);
   redirect(`/u/${user.id}`);
@@ -60,14 +73,15 @@ export async function deactivateAccount(): Promise<ActionState> {
 
   const admin = createAdminClient();
 
-  // 1. 公開プロフィールを匿名化(表示名・自己紹介・属性)。
+  // 1. 公開プロフィールを匿名化(表示名・自己紹介)し、非公開属性は破棄する。
   const { error: anonError } = await admin
     .from("users")
-    .update({ display_name: "退会したユーザー", bio: null, gender: null, age: null })
+    .update({ display_name: "退会したユーザー", bio: null })
     .eq("id", user.id);
   if (anonError) {
     return { error: "退会処理に失敗しました。しばらくして再度お試しください。" };
   }
+  await admin.from("user_private").delete().eq("user_id", user.id);
 
   // 2. メールアドレスを無効値に差し替え、同じメールでの再登録をすぐ可能にする。
   await admin.auth.admin.updateUserById(user.id, {

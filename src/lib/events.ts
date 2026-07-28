@@ -6,7 +6,9 @@ type EventType =
   | "solution_imp"
   | "solution_click"
   | "empathy"
-  | "resolution";
+  | "resolution"
+  /** 投稿前チェック(下書きのLLM確認)。レートリミットの集計にも使う。 */
+  | "precheck";
 
 /** イベントを1件記録する(F9)。計測はサービスロールで書き込む。 */
 export async function logEvent(input: {
