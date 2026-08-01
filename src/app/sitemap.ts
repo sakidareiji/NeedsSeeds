@@ -26,6 +26,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE}/privacy` },
     { url: `${BASE}/about` },
     { url: `${BASE}/contact` },
+    // 認証フロー(/login /signup /forgot-password /reset-password)は載せない。
   ];
 
   const categoryPages: MetadataRoute.Sitemap = (cats ?? []).map((c) => ({

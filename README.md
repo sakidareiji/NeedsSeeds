@@ -104,6 +104,29 @@ npm run dev            # http://localhost:3000
   Email Templates の Confirm signup に `supabase/templates/confirmation.html` と
   同じ内容(リンク先 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email`)を設定します。
 
+### パスワード再設定(F1)
+
+メール+パスワードで登録したユーザーが、パスワードを忘れても復帰できるようにします
+(これが無いと、忘れた時点で投稿の編集も退会もできなくなります)。
+
+```
+/login の「パスワードをお忘れですか?」
+  → /forgot-password        resetPasswordForEmail でメール送信
+  → メールのリンク            /auth/confirm?token_hash=...&type=recovery&next=/reset-password
+  → /reset-password         セッションが張られた状態で updateUser({ password })
+```
+
+- 確認メールと同じ **token_hash 方式**なので、スマホのメールアプリなど別のブラウザで
+  開いても検証できます。テンプレートは `supabase/templates/recovery.html`。
+- **アカウントの有無は伝えません**。登録が無いメールアドレスでも同じ完了画面を出します
+  (第三者に登録の有無を教えないため)。
+- `/auth/confirm` の `next` は自サイト内の相対パスのみ許可します(オープンリダイレクト防止)。
+- リンクが期限切れ・無効の場合と、セッション無しで `/reset-password` を直接開いた場合は、
+  どちらも `/forgot-password?error=expired` に戻して再送を促します。
+- 本番は Dashboard → Authentication → Email Templates → **Reset Password** に
+  `supabase/templates/recovery.html` と同じ内容を設定します(`next=/reset-password` を落とさないこと)。
+- Google ログインのアカウントにはパスワードがないため、この導線は使いません。
+
 ### 通知メール(再訪トリガー)
 
 AI解析で解決のヒントが**初めて提示されたとき**、投稿者に1通だけお知らせメールを

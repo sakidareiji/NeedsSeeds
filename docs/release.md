@@ -64,6 +64,21 @@ Dashboard → Authentication → URL Configuration:
    件名を `【Needs Seeds】メールアドレスの確認`、本文を `supabase/templates/confirmation.html` の内容に差し替える
    (確認リンクは `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email` になっていること)
 
+### 2-4-2. パスワード再設定メールの設定(F1)
+
+Authentication → Email Templates → **Reset Password** を開き、
+件名を `【Needs Seeds】パスワードの再設定`、本文を `supabase/templates/recovery.html` の内容に差し替える。
+
+リンクが以下の形になっていること(`next` が抜けると検証後にトップへ飛んでしまい、
+新しいパスワードを入力できない):
+
+```
+{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password
+```
+
+> 既定のテンプレート(`{{ .ConfirmationURL }}`)のままだと、別のブラウザ(スマホのメールアプリ等)で
+> リンクを開いたときに PKCE の code 交換に失敗する。確認メールと同じ token_hash 方式に揃えること。
+
 ### 2-5. Google OAuth(本番)
 
 1. https://console.cloud.google.com → 既存の OAuth クライアント(ローカル用に作成済み)を開く
@@ -180,6 +195,8 @@ Cron と手動実行が重なっても LLM が二重に課金されることは�
 - [ ] トップページが表示され、カテゴリタブ・説明文が出る
 - [ ] 新規登録 → 確認メールが**自分の実メールアドレス**に届く(迷惑メール行きでないこと)
 - [ ] 確認リンク → ログインできる
+- [ ] ログイン画面の「パスワードをお忘れですか?」→ 再設定メールが届き、
+      リンクから新しいパスワードを設定してログインできる(古いパスワードでは入れない)
 - [ ] Google でログインできる(`NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=true` の場合)
 - [ ] 投稿する → 1〜2分以内に AI 解析が走り「解決のヒント」が表示される(Cron 経由)
 - [ ] ヒント提示のお知らせメールが届く

@@ -161,14 +161,25 @@ export function AuthForm({ mode }: { mode: Mode }) {
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium" htmlFor="password">
-            パスワード
-          </label>
+          <div className="mb-1 flex items-baseline justify-between gap-2">
+            <label className="block text-sm font-medium" htmlFor="password">
+              パスワード
+            </label>
+            {mode === "login" && (
+              <Link
+                href="/forgot-password"
+                className="text-xs text-brand-600 hover:underline"
+              >
+                パスワードをお忘れですか?
+              </Link>
+            )}
+          </div>
           <input
             id="password"
             type="password"
             required
             minLength={6}
+            autoComplete={mode === "signup" ? "new-password" : "current-password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full rounded-lg border border-neutral-300 px-3 py-2"
