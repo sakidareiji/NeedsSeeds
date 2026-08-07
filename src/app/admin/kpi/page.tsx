@@ -28,7 +28,13 @@ export default async function AdminKpiPage() {
   const [published, pending, failed, openReports, clicks, empathies] =
     await Promise.all([
       cnt(admin.from("posts").select("id", head).eq("status", "published")),
-      cnt(admin.from("posts").select("id", head).eq("ai_status", "pending").neq("status", "deleted")),
+      cnt(
+        admin
+          .from("posts")
+          .select("id", head)
+          .in("ai_status", ["pending", "processing"])
+          .neq("status", "deleted")
+      ),
       cnt(admin.from("posts").select("id", head).eq("ai_status", "failed")),
       cnt(admin.from("reports").select("id", head).eq("status", "open")),
       cnt(admin.from("events").select("id", head).eq("type", "solution_click")),

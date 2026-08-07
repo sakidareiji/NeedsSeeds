@@ -22,14 +22,24 @@ export default function AboutPage() {
         <dl className="space-y-1">
           <div className="flex gap-4">
             <dt className="w-24 shrink-0 text-neutral-500">運営者</dt>
-            <dd>Needs Seeds 運営者(個人運営)</dd>
+            <dd>Needs Seeds 運営(個人運営)</dd>
           </div>
           <div className="flex gap-4">
             <dt className="w-24 shrink-0 text-neutral-500">連絡先</dt>
-            {/* TODO(公開前): 専用の問い合わせアドレスを開設したら差し替える */}
-            <dd>準備中(専用の問い合わせ窓口を開設予定です)</dd>
+            <dd>
+              <Link href="/contact" className="text-brand-600 hover:underline">
+                お問い合わせフォーム
+              </Link>
+            </dd>
           </div>
         </dl>
+        <p className="text-xs text-neutral-500">
+          運営者の氏名・住所は、法令に基づく開示のご請求があった場合に、
+          <Link href="/contact" className="text-brand-600 hover:underline">
+            お問い合わせフォーム
+          </Link>
+          からのご連絡に対して遅滞なく開示します。
+        </p>
       </section>
 
       <section className="space-y-2">
@@ -44,6 +54,11 @@ export default function AboutPage() {
       <section className="space-y-2">
         <h2 className="text-lg font-bold text-neutral-900">関連ページ</h2>
         <ul className="list-disc space-y-1 pl-5">
+          <li>
+            <Link href="/contact" className="text-brand-600 hover:underline">
+              お問い合わせ
+            </Link>
+          </li>
           <li>
             <Link href="/terms" className="text-brand-600 hover:underline">
               利用規約

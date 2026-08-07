@@ -44,7 +44,7 @@
 ```bash
 supabase login
 supabase link --project-ref <プロジェクトRef>   # URL の abcd1234 の部分
-supabase db push                                # migration 0001〜0014 を適用
+supabase db push                                # migration 0001〜0019 を適用
 ```
 
 シード(カテゴリ・解決策マスタのサンプル)は SQL Editor から `supabase/seed.sql` の内容を貼り付けて実行する。
@@ -63,6 +63,21 @@ Dashboard → Authentication → URL Configuration:
 2. Authentication → Email Templates → **Confirm signup** を開き、
    件名を `【Needs Seeds】メールアドレスの確認`、本文を `supabase/templates/confirmation.html` の内容に差し替える
    (確認リンクは `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email` になっていること)
+
+### 2-4-2. パスワード再設定メールの設定(F1)
+
+Authentication → Email Templates → **Reset Password** を開き、
+件名を `【Needs Seeds】パスワードの再設定`、本文を `supabase/templates/recovery.html` の内容に差し替える。
+
+リンクが以下の形になっていること(`next` が抜けると検証後にトップへ飛んでしまい、
+新しいパスワードを入力できない):
+
+```
+{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password
+```
+
+> 既定のテンプレート(`{{ .ConfirmationURL }}`)のままだと、別のブラウザ(スマホのメールアプリ等)で
+> リンクを開いたときに PKCE の code 交換に失敗する。確認メールと同じ token_hash 方式に揃えること。
 
 ### 2-5. Google OAuth(本番)
 
@@ -131,6 +146,16 @@ Dashboard → Project Settings → Auth → SMTP Settings を ON:
 | `SMTP_USER` | `resend` |
 | `SMTP_PASS` | (Resend の API キー) |
 | `EMAIL_FROM` | `Needs Seeds <noreply@needsseeds.com>` |
+| `CONTACT_EMAIL` | 問い合わせ通知の宛先(自分が受け取れるアドレス)。未設定でも受付は動くが、`/admin/contact` を見に行かないと気付けない |
+
+### 4-2-2. Node.js のバージョン
+
+Settings → General → **Node.js Version** が **22.x** になっていることを確認する
+(`package.json` の `engines` でも指定済みなので通常は自動で 22 が選ばれる)。
+
+> 20.x だと `@supabase/supabase-js` の `createClient` がグローバルの WebSocket を
+> 見つけられずに例外を投げ、**全ページが 500 になる**。ビルドは通ってしまうので、
+> デプロイ後に初めて気づくことになる。
 
 ### 4-3. デプロイとドメイン接続
 
@@ -138,10 +163,37 @@ Dashboard → Project Settings → Auth → SMTP Settings を ON:
 2. Settings → Domains → `needsseeds.com` を追加 → 表示された DNS レコード(A または CNAME)を Cloudflare に追加(**グレー雲 = DNS only**)
 3. `https://needsseeds.com` が開けること、`www` → apex のリダイレクト設定を確認
 
-### 4-4. Cron の確認
+### 4-4. Cron の確認(**プランに注意**)
 
-`vercel.json` で毎分 `/api/analyze` を叩く設定済み。デプロイ後、Vercel → Settings → Cron Jobs に
+`vercel.json` で毎分 `/api/analyze` を叩く設定にしてある。デプロイ後、Vercel → Settings → Cron Jobs に
 `/api/analyze (* * * * *)` が表示されていれば OK(`CRON_SECRET` が一致していないと 401 になる)。
+
+> ⚠️ **Hobby プランでは毎分 Cron を設定できない。** Hobby は 1日1回までで、
+> それより短い間隔の式は **デプロイがエラーで失敗する**(「Hobby accounts are limited to
+> daily cron jobs」)。しかも Hobby の Cron は指定時刻の1時間以内のどこかで実行される。
+> 投稿から数十秒〜数分で解決ヒントを出すのが本サービスの体験なので、日次 Cron では成立しない。
+
+選択肢は次の3つ。**A を推奨**(コストが budget 内に収まり、構成が一番単純)。
+
+| | 方式 | 費用 | 解析の遅延 |
+|---|---|---|---|
+| **A** | **Vercel Pro** にして `vercel.json` の毎分 Cron をそのまま使う | $20/月(約3,000円) | 数十秒〜1分 |
+| B | Hobby のまま、外部の無料 Cron サービス(cron-job.org 等)から毎分叩く | 0円 | 数十秒〜1分 |
+| C | Hobby のまま `vercel.json` の `crons` を削除し、投稿直後の非同期起動だけに頼る | 0円 | **不定(取りこぼしあり)** |
+
+- **B の設定**: `vercel.json` の `crons` を削除してデプロイ(残すとデプロイが失敗する)。
+  外部サービスから以下を1分間隔で実行する。シークレットが URL に載らないようヘッダで渡すこと。
+
+  ```bash
+  curl -X POST -H "x-worker-secret: <ANALYSIS_WORKER_SECRET>" https://needsseeds.com/api/analyze
+  ```
+
+- **C は非推奨**。Vercel ではレスポンス返却後の処理が保証されないため、`ai_status='pending'`
+  のまま残る投稿が出る(その投稿はヒントが永久に出ない)。採用するなら、運営が定期的に
+  `/admin/analysis` を見て手動で再解析する運用が必要。
+
+なお、解析ワーカーは同じ投稿を同時に処理しない(0017 で `processing` による排他確保を実装済み)ので、
+Cron と手動実行が重なっても LLM が二重に課金されることはない。
 
 ---
 
@@ -152,6 +204,8 @@ Dashboard → Project Settings → Auth → SMTP Settings を ON:
 - [ ] トップページが表示され、カテゴリタブ・説明文が出る
 - [ ] 新規登録 → 確認メールが**自分の実メールアドレス**に届く(迷惑メール行きでないこと)
 - [ ] 確認リンク → ログインできる
+- [ ] ログイン画面の「パスワードをお忘れですか?」→ 再設定メールが届き、
+      リンクから新しいパスワードを設定してログインできる(古いパスワードでは入れない)
 - [ ] Google でログインできる(`NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=true` の場合)
 - [ ] 投稿する → 1〜2分以内に AI 解析が走り「解決のヒント」が表示される(Cron 経由)
 - [ ] ヒント提示のお知らせメールが届く

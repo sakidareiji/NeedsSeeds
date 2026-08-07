@@ -2,6 +2,10 @@
   "name": "needs-seeds",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "// node": "@supabase/supabase-js の createClient が realtime の初期化でグローバルの WebSocket を要求する。Node 20 には無いため、createClient を呼んだ時点で例外になる(= 全ページが 500)。Vercel もこの指定を見てランタイムを選ぶ。",
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",

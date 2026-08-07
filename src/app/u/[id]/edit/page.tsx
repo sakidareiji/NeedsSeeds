@@ -17,17 +17,31 @@ export default async function EditProfilePage({
   if (user.id !== params.id) notFound(); // 本人のみ編集可
 
   const supabase = createClient();
-  const { data: profile } = await supabase
-    .from("users")
-    .select("display_name, bio, gender, age")
-    .eq("id", params.id)
-    .maybeSingle();
+  // 性別・年齢は本人限定テーブル(0015)。RLS により他人の行は取得できない。
+  const [{ data: profile }, { data: priv }] = await Promise.all([
+    supabase
+      .from("users")
+      .select("display_name, bio")
+      .eq("id", params.id)
+      .maybeSingle(),
+    supabase
+      .from("user_private")
+      .select("gender, age")
+      .eq("user_id", params.id)
+      .maybeSingle(),
+  ]);
   if (!profile) notFound();
 
   return (
     <div className="mx-auto max-w-3xl">
       <h1 className="mb-6 text-2xl font-bold">プロフィールを編集</h1>
-      <ProfileForm defaults={profile} />
+      <ProfileForm
+        defaults={{
+          ...profile,
+          gender: priv?.gender ?? null,
+          age: priv?.age ?? null,
+        }}
+      />
 
       <div className="mt-12 border-t border-neutral-200 pt-6">
         <h2 className="mb-1 text-sm font-medium text-neutral-500">退会</h2>

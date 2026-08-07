@@ -6,4 +6,11 @@ export const rateLimits = {
   postsPerDay: 10,
   /** 1ユーザーあたりの「わかる」上限(直近24時間) */
   empathiesPerDay: 200,
+  /**
+   * 1ユーザーあたりの投稿前チェック(下書きのLLM確認)の上限(直近1時間)。
+   * 投稿本体より緩いが、LLM 課金を焼かれないための上限は必要。
+   */
+  prechecksPerHour: 30,
+  /** 同一IPからの問い合わせ送信の上限(直近1時間)。窓口の連投・スパム対策。 */
+  contactsPerHour: 5,
 } as const;

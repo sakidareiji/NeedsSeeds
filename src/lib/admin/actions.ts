@@ -42,6 +42,17 @@ export async function setReportStatus(
   revalidatePath("/admin/reports");
 }
 
+/** 問い合わせの対応状況を切り替える(/admin/contact)。 */
+export async function setContactStatus(
+  messageId: string,
+  status: "open" | "closed"
+): Promise<void> {
+  await assertAdmin();
+  const admin = createAdminClient();
+  await admin.from("contact_messages").update({ status }).eq("id", messageId);
+  revalidatePath("/admin/contact");
+}
+
 // ---- カテゴリ CRUD(F10) --------------------------------------------------
 export async function upsertCategory(formData: FormData): Promise<void> {
   await assertAdmin();

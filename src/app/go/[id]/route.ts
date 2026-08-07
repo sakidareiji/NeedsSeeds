@@ -5,6 +5,16 @@ import { logEvent } from "@/lib/events";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/** リダイレクトしてよいURLか(http/https のみ許可)。 */
+function isSafeUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 /**
  * 解決策クリックのリダイレクト計測(F9)。/go/[postSolutionId] 経由で必ずログを取る。
  * post_solution からマスタ解決策のURLを引き、クリックを記録してから遷移する。
@@ -28,7 +38,9 @@ export async function GET(
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "";
 
   // 一般アドバイス(URLなし)や掲載停止・不明IDはトップへ。
-  if (!data || !solution || solution.status !== "active") {
+  // URL は運営しか登録できず DB 制約(0018)でも http(s) に限っているが、
+  // 外部へ送り出す直前でも必ず検証する(オープンリダイレクトの最終防衛)。
+  if (!data || !solution || solution.status !== "active" || !isSafeUrl(solution.url)) {
     return NextResponse.redirect(siteUrl || new URL("/", _request.url));
   }
 

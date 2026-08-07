@@ -44,6 +44,12 @@ enable_confirmations = true
 subject = "【Needs Seeds】メールアドレスの確認"
 content_path = "./supabase/templates/confirmation.html"
 
+# パスワード再設定も同じく /auth/confirm 着地(type=recovery)にする。
+# 検証後は next=/reset-password へ送り、新しいパスワードを入力させる。
+[auth.email.template.recovery]
+subject = "【Needs Seeds】パスワードの再設定"
+content_path = "./supabase/templates/recovery.html"
+
 # Google OAuth (F1). Set the secrets via env before `supabase start`:
 #   SUPABASE_AUTH_GOOGLE_CLIENT_ID / SUPABASE_AUTH_GOOGLE_SECRET
 [auth.external.google]
