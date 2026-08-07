@@ -148,6 +148,15 @@ Dashboard → Project Settings → Auth → SMTP Settings を ON:
 | `EMAIL_FROM` | `Needs Seeds <noreply@needsseeds.com>` |
 | `CONTACT_EMAIL` | 問い合わせ通知の宛先(自分が受け取れるアドレス)。未設定でも受付は動くが、`/admin/contact` を見に行かないと気付けない |
 
+### 4-2-2. Node.js のバージョン
+
+Settings → General → **Node.js Version** が **22.x** になっていることを確認する
+(`package.json` の `engines` でも指定済みなので通常は自動で 22 が選ばれる)。
+
+> 20.x だと `@supabase/supabase-js` の `createClient` がグローバルの WebSocket を
+> 見つけられずに例外を投げ、**全ページが 500 になる**。ビルドは通ってしまうので、
+> デプロイ後に初めて気づくことになる。
+
 ### 4-3. デプロイとドメイン接続
 
 1. Deploy 実行 → ビルド成功を確認

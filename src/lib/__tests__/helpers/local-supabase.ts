@@ -40,8 +40,11 @@ export const FALLBACK_KEY = "skipped";
 export async function supabaseAvailable(): Promise<boolean> {
   if (!url || !anonKey || !serviceKey) return false;
   try {
+    // .env.local はあるが Supabase(Docker)が固まっている場合、タイムアウトを
+    // 付けないと接続待ちで npm test が何分も止まる。応答しなければ「無し」扱い。
     const res = await fetch(`${url}/auth/v1/health`, {
       headers: { apikey: anonKey },
+      signal: AbortSignal.timeout(3000),
     });
     return res.ok;
   } catch {

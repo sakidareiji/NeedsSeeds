@@ -19,7 +19,8 @@
 
 ### 前提
 
-- Node.js 20+ / npm
+- **Node.js 22+** / npm(@supabase/supabase-js がグローバルの WebSocket を要求するため。
+  20 系だと `createClient` の時点で例外になり、全ページが 500 になります)
 - [Supabase CLI](https://supabase.com/docs/guides/cli)(ローカル DB 用。内部で Docker を使用)
 - Gemini API キー(M2 のAI解析用。Anthropic API キーでも可)
 

@@ -18,7 +18,9 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # 22 未満だとグローバルの WebSocket が無く、@supabase/supabase-js の
+          # createClient が例外を投げる(package.json の engines も参照)。
+          node-version: 22
           cache: npm
 
       - run: npm ci
